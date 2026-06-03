@@ -436,7 +436,7 @@
         </div>
     </div>
 
-    <!-- 🚨 JS LOGIC -->
+   <!-- 🚨 JS LOGIC -->
     <script>
         function openDeveloperModal() { document.getElementById('dev-modal').classList.add('active'); }
         function closeDeveloperModal(event) {
@@ -455,11 +455,6 @@
             document.getElementById('current-lang').innerText = langName;
         }
 
-        function downloadFakeExtension() {
-            let a = document.createElement('a'); a.href = "data:application/zip;base64,UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA==";
-            a.download = "Indrajeet_Extension.zip"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        }
-
         function clearInput() {
             document.getElementById('video-url').value = '';
             document.getElementById('clear-btn').style.display = 'none'; document.getElementById('result-container').style.display = 'none';
@@ -471,20 +466,28 @@
         let lastCopiedLink = "";
         setInterval(() => {
             try {
-                const { clipboard } = require('electron'); let text = clipboard.readText();
-                if (text && text !== lastCopiedLink && text.startsWith('http')) {
-                    lastCopiedLink = text; let inputBox = document.getElementById('video-url');
-                    if (inputBox.value !== text) {
-                        document.getElementById('result-container').style.display = 'none'; inputBox.value = text; toggleClearBtn(); 
-                        if(text.includes('youtu')) switchTheme('youtube', 'YouTube'); else if(text.includes('tiktok')) switchTheme('tiktok', 'TikTok'); else if(text.includes('instagram')) switchTheme('instagram', 'Instagram'); else if(text.includes('facebook')) switchTheme('facebook', 'Facebook'); else if(text.includes('pin')) switchTheme('pinterest', 'Pinterest');
-                        fetchVideoData(); 
+                if (typeof window !== "undefined" && window.require) {
+                    const { clipboard } = window.require('electron'); 
+                    let text = clipboard.readText();
+                    if (text && text !== lastCopiedLink && text.startsWith('http')) {
+                        lastCopiedLink = text; let inputBox = document.getElementById('video-url');
+                        if (inputBox.value !== text) {
+                            document.getElementById('result-container').style.display = 'none'; inputBox.value = text; toggleClearBtn(); 
+                            if(text.includes('youtu')) switchTheme('youtube', 'YouTube'); else if(text.includes('tiktok')) switchTheme('tiktok', 'TikTok'); else if(text.includes('instagram')) switchTheme('instagram', 'Instagram'); else if(text.includes('facebook')) switchTheme('facebook', 'Facebook'); else if(text.includes('pin')) switchTheme('pinterest', 'Pinterest');
+                            fetchVideoData(); 
+                        }
                     }
                 }
-            } catch (err) { }
+            } catch (err) { console.log(err); }
         }, 1000);
 
         function fetchVideoData() {
-            let url = document.getElementById('video-url').value.trim(); if(!url) return;
+            let url = document.getElementById('video-url').value.trim(); 
+            if(!url) {
+                alert("Please paste a video link first!");
+                return;
+            }
+            
             document.getElementById('platforms-grid').style.display = 'none'; document.getElementById('result-container').style.display = 'none';
             document.getElementById('progress-box').style.display = 'none'; document.getElementById('loader').style.display = 'block';
             
@@ -499,8 +502,15 @@
                         let tr = document.createElement('tr'); let tdQ = document.createElement('td'); tdQ.innerHTML = `<strong>${q}</strong>`; let tdF = document.createElement('td'); tdF.innerText = q.toLowerCase().includes('audio') ? "MP3" : "MP4"; let tdBtn = document.createElement('td'); let btn = document.createElement('button'); btn.className = "dl-action-btn"; btn.innerText = "Download"; btn.onclick = function() { document.querySelectorAll('.dl-action-btn').forEach(b => b.innerText = "Download"); this.innerText = "Processing..."; startRealDownload(url, q); };
                         tdBtn.appendChild(btn); tr.appendChild(tdQ); tr.appendChild(tdF); tr.appendChild(tdBtn); tbody.appendChild(tr);
                     });
+                } else {
+                    alert("Video details fetch failed: " + data.error);
+                    document.getElementById('platforms-grid').style.display = 'block';
                 }
-            }).catch(() => { document.getElementById('loader').style.display = 'none'; document.getElementById('platforms-grid').style.display = 'block'; });
+            }).catch((err) => { 
+                document.getElementById('loader').style.display = 'none'; 
+                document.getElementById('platforms-grid').style.display = 'block'; 
+                alert("Server Connection Error: " + err.message);
+            });
         }
 
         function switchTheme(platform, name) {
@@ -518,9 +528,32 @@
             }
         }
 
-        function openPlatform(url) { try { const { shell } = require('electron'); shell.openExternal(url); } catch (err) { window.open(url, '_blank'); } }
+        function openPlatform(url) { 
+            if (typeof window !== "undefined" && window.require) { 
+                const { shell } = window.require('electron'); shell.openExternal(url); 
+            } else { window.open(url, '_blank'); } 
+        }
+
         async function downloadThumbnail() { let src = document.getElementById('video-thumb').src; if(!src) return; try { let response = await fetch(src); let blob = await response.blob(); let blobUrl = URL.createObjectURL(blob); let a = document.createElement('a'); a.href = blobUrl; a.download = 'Premium_Thumbnail.jpg'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(blobUrl); } catch (err) { let a = document.createElement('a'); a.href = src; a.download = 'Premium_Thumbnail.jpg'; a.target = "_blank"; document.body.appendChild(a); a.click(); document.body.removeChild(a); } }
-        function startRealDownload(url, qType) { let pBox = document.getElementById('progress-box'); let pBar = document.getElementById('progress-bar'); let pText = document.getElementById('progress-text'); let statusMsg = document.getElementById('status-message'); pBox.style.display = 'block'; pBar.style.width = '0%'; pText.innerText = '0%'; statusMsg.style.color = "var(--primary-color)"; statusMsg.innerText = `Downloading ${qType}... Please wait.`; let progress = 0; let progressInterval = setInterval(() => { progress += Math.random() * 8; if(progress > 95) progress = 95; pBar.style.width = progress + '%'; pText.innerText = Math.floor(progress) + '%'; }, 1000); fetch('https://indrajeet-video-downloader.onrender.com/download', { method: 'POST', body: JSON.stringify({url, quality: qType}), headers:{'Content-Type':'application/json'} }).then(res => res.json()).then(data => { clearInterval(progressInterval); pBar.style.width = '100%'; pText.innerText = '100%'; statusMsg.style.color = "#00e676"; statusMsg.innerText = "Download 100% Successful!"; if(data.success && data.filename) { let a = document.createElement('a'); a.href = "https://indrajeet-video-downloader.onrender.com/fetch_file/" + encodeURIComponent(data.filename); a.setAttribute('download', data.filename); document.body.appendChild(a); a.click(); document.body.removeChild(a); } }).catch(() => { clearInterval(progressInterval); statusMsg.style.color = "#ff0000"; statusMsg.innerText = "Download Failed!"; }); }
+        
+        function startRealDownload(url, qType) { 
+            let pBox = document.getElementById('progress-box'); let pBar = document.getElementById('progress-bar'); let pText = document.getElementById('progress-text'); let statusMsg = document.getElementById('status-message'); pBox.style.display = 'block'; pBar.style.width = '0%'; pText.innerText = '0%'; statusMsg.style.color = "var(--primary-color)"; statusMsg.innerText = `Downloading ${qType}... Please wait.`; let progress = 0; 
+            let progressInterval = setInterval(() => { progress += Math.random() * 8; if(progress > 95) progress = 95; pBar.style.width = progress + '%'; pText.innerText = Math.floor(progress) + '%'; }, 1000); 
+            
+            fetch('https://indrajeet-video-downloader.onrender.com/download', { method: 'POST', body: JSON.stringify({url, quality: qType}), headers:{'Content-Type':'application/json'} })
+            .then(res => res.json()).then(data => { 
+                clearInterval(progressInterval); pBar.style.width = '100%'; pText.innerText = '100%'; statusMsg.style.color = "#00e676"; statusMsg.innerText = "Download 100% Successful!"; 
+                if(data.success && data.filename) { 
+                    let a = document.createElement('a'); a.href = "https://indrajeet-video-downloader.onrender.com/fetch_file/" + encodeURIComponent(data.filename); a.setAttribute('download', data.filename); document.body.appendChild(a); a.click(); document.body.removeChild(a); 
+                } else {
+                    statusMsg.style.color = "#ff0000"; statusMsg.innerText = "Error: " + data.error;
+                    alert("Download Failed: " + data.error);
+                }
+            }).catch((err) => { 
+                clearInterval(progressInterval); statusMsg.style.color = "#ff0000"; statusMsg.innerText = "Download Failed!"; 
+                alert("Download Error: " + err.message);
+            }); 
+        }
     </script>
 </body>
 </html>

@@ -436,8 +436,7 @@
         </div>
     </div>
 
-   <!-- 🚨 JS LOGIC -->
-    <script>
+  <script>
         function openDeveloperModal() { document.getElementById('dev-modal').classList.add('active'); }
         function closeDeveloperModal(event) {
             if(event) { if(event.target.id === 'dev-modal') document.getElementById('dev-modal').classList.remove('active'); } 
@@ -488,16 +487,21 @@
                 return;
             }
             
-            document.getElementById('platforms-grid').style.display = 'none'; document.getElementById('result-container').style.display = 'none';
-            document.getElementById('progress-box').style.display = 'none'; document.getElementById('loader').style.display = 'block';
+            document.getElementById('platforms-grid').style.display = 'none'; 
+            document.getElementById('result-container').style.display = 'none';
+            document.getElementById('progress-box').style.display = 'none'; 
+            document.getElementById('loader').style.display = 'block'; // लोडिंग स्पिनर चालू
             
             fetch('https://indrajeet-video-downloader.onrender.com/check_info', { method: 'POST', body: JSON.stringify({url}), headers:{'Content-Type':'application/json'} })
             .then(res => res.json()).then(data => {
-                document.getElementById('loader').style.display = 'none';
+                document.getElementById('loader').style.display = 'none'; // स्पिनर बंद
                 if(data.success) {
-                    document.getElementById('result-container').style.display = 'block'; document.getElementById('video-thumb').src = data.thumb || 'https://via.placeholder.com/380x214?text=No+Thumbnail'; document.getElementById('video-title').innerText = data.title || 'Ready to Download';
+                    document.getElementById('result-container').style.display = 'block'; 
+                    document.getElementById('video-thumb').src = data.thumb; 
+                    document.getElementById('video-title').innerText = data.title;
+                    
                     let tbody = document.getElementById('quality-list'); tbody.innerHTML = '';
-                    let realQualities = data.qualities || ['4K (2160p)', '1080p (.mp4)', 'Audio (.mp3)'];
+                    let realQualities = data.qualities;
                     realQualities.forEach(q => {
                         let tr = document.createElement('tr'); let tdQ = document.createElement('td'); tdQ.innerHTML = `<strong>${q}</strong>`; let tdF = document.createElement('td'); tdF.innerText = q.toLowerCase().includes('audio') ? "MP3" : "MP4"; let tdBtn = document.createElement('td'); let btn = document.createElement('button'); btn.className = "dl-action-btn"; btn.innerText = "Download"; btn.onclick = function() { document.querySelectorAll('.dl-action-btn').forEach(b => b.innerText = "Download"); this.innerText = "Processing..."; startRealDownload(url, q); };
                         tdBtn.appendChild(btn); tr.appendChild(tdQ); tr.appendChild(tdF); tr.appendChild(tdBtn); tbody.appendChild(tr);
@@ -509,7 +513,7 @@
             }).catch((err) => { 
                 document.getElementById('loader').style.display = 'none'; 
                 document.getElementById('platforms-grid').style.display = 'block'; 
-                alert("Server Connection Error: " + err.message);
+                alert("Server Connection Error! Please try again.");
             });
         }
 
@@ -534,24 +538,34 @@
             } else { window.open(url, '_blank'); } 
         }
 
-        async function downloadThumbnail() { let src = document.getElementById('video-thumb').src; if(!src) return; try { let response = await fetch(src); let blob = await response.blob(); let blobUrl = URL.createObjectURL(blob); let a = document.createElement('a'); a.href = blobUrl; a.download = 'Premium_Thumbnail.jpg'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(blobUrl); } catch (err) { let a = document.createElement('a'); a.href = src; a.download = 'Premium_Thumbnail.jpg'; a.target = "_blank"; document.body.appendChild(a); a.click(); document.body.removeChild(a); } }
-        
         function startRealDownload(url, qType) { 
-            let pBox = document.getElementById('progress-box'); let pBar = document.getElementById('progress-bar'); let pText = document.getElementById('progress-text'); let statusMsg = document.getElementById('status-message'); pBox.style.display = 'block'; pBar.style.width = '0%'; pText.innerText = '0%'; statusMsg.style.color = "var(--primary-color)"; statusMsg.innerText = `Downloading ${qType}... Please wait.`; let progress = 0; 
-            let progressInterval = setInterval(() => { progress += Math.random() * 8; if(progress > 95) progress = 95; pBar.style.width = progress + '%'; pText.innerText = Math.floor(progress) + '%'; }, 1000); 
+            let pBox = document.getElementById('progress-box'); let pBar = document.getElementById('progress-bar'); let pText = document.getElementById('progress-text'); let statusMsg = document.getElementById('status-message'); 
+            pBox.style.display = 'block'; pBar.style.width = '10%'; pText.innerText = 'Connecting...'; statusMsg.style.color = "var(--primary-color)"; statusMsg.innerText = `Preparing High-Speed Link...`; 
+            
+            // नया प्रोग्रेस बार जो स्मूथ चलेगा
+            let progress = 10; 
+            let progressInterval = setInterval(() => { progress += Math.random() * 15; if(progress > 85) progress = 85; pBar.style.width = progress + '%'; pText.innerText = Math.floor(progress) + '%'; }, 800); 
             
             fetch('https://indrajeet-video-downloader.onrender.com/download', { method: 'POST', body: JSON.stringify({url, quality: qType}), headers:{'Content-Type':'application/json'} })
             .then(res => res.json()).then(data => { 
-                clearInterval(progressInterval); pBar.style.width = '100%'; pText.innerText = '100%'; statusMsg.style.color = "#00e676"; statusMsg.innerText = "Download 100% Successful!"; 
-                if(data.success && data.filename) { 
-                    let a = document.createElement('a'); a.href = "https://indrajeet-video-downloader.onrender.com/fetch_file/" + encodeURIComponent(data.filename); a.setAttribute('download', data.filename); document.body.appendChild(a); a.click(); document.body.removeChild(a); 
+                clearInterval(progressInterval); 
+                
+                if(data.success && data.direct_url) { 
+                    pBar.style.width = '100%'; pText.innerText = '100%'; 
+                    statusMsg.style.color = "#00e676"; statusMsg.innerText = "High-Speed Link Ready! Downloading..."; 
+                    
+                    // सीधा हाई-स्पीड सर्वर से डाउनलोड
+                    window.location.href = data.direct_url;
                 } else {
+                    pBar.style.width = '0%'; pText.innerText = 'Error';
                     statusMsg.style.color = "#ff0000"; statusMsg.innerText = "Error: " + data.error;
                     alert("Download Failed: " + data.error);
                 }
             }).catch((err) => { 
-                clearInterval(progressInterval); statusMsg.style.color = "#ff0000"; statusMsg.innerText = "Download Failed!"; 
-                alert("Download Error: " + err.message);
+                clearInterval(progressInterval); 
+                pBar.style.width = '0%'; pText.innerText = 'Error';
+                statusMsg.style.color = "#ff0000"; statusMsg.innerText = "Download Failed!"; 
+                alert("Server Error! Please try again.");
             }); 
         }
     </script>

@@ -519,12 +519,71 @@
             document.getElementById('yt-box').classList.add('active-box');
         }
 
-        // YT Special Iframe Downloader (No Error)
+        // YT Special Box Logic (Advanced Multi-Server Bypass - Fixed)
         function loadYTIframe() {
             let url = document.getElementById('yt-iframe-input').value.trim();
             if(!url) { alert("Please paste a YouTube link!"); return; }
-            document.getElementById('yt-iframe-wrapper').style.display = 'block';
-            document.getElementById('yt-widget').src = `https://loader.to/api/button/?url=${encodeURIComponent(url)}&f=1080&color=1a73e8`;
+            
+            let wrapper = document.getElementById('yt-iframe-wrapper');
+            wrapper.style.display = 'block';
+            
+            // Animation styles injection (so we don't touch your main CSS)
+            if (!document.getElementById('yt-animations')) {
+                let style = document.createElement('style');
+                style.id = 'yt-animations';
+                style.innerHTML = '@keyframes ytSpin { 100% { transform: rotate(360deg); } } @keyframes ytPulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; text-shadow: 0 0 10px var(--primary-color); } }';
+                document.head.appendChild(style);
+            }
+            
+            wrapper.innerHTML = `
+                <div style="padding: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
+                    <div style="width: 40px; height: 40px; border: 4px solid var(--box-border); border-top: 4px solid #ff0000; border-radius: 50%; animation: ytSpin 1s linear infinite; margin-bottom: 15px;"></div>
+                    <div style="color: var(--text-main); font-weight: 800; font-size: 15px; animation: ytPulse 1.5s infinite;">⏳ Bypassing Security & Generating Link...</div>
+                </div>`;
+
+            fetch('https://api.cobalt.tools/api/json', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url, vQuality: "1080", isAudioOnly: false, aFormat: "mp3" })
+            }).then(res => res.json()).then(data => {
+                if (data.status === "redirect" || data.status === "stream" || data.status === "success") {
+                    showDownloadButton(data.url);
+                } else {
+                    trySecondServer(url);
+                }
+            }).catch(err => {
+                trySecondServer(url);
+            });
+        }
+
+        function trySecondServer(url) {
+            let wrapper = document.getElementById('yt-iframe-wrapper');
+            fetch('https://co.wuk.sh/api/json', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url, vQuality: "1080", isAudioOnly: false, aFormat: "mp3" })
+            }).then(res => res.json()).then(data => {
+                if (data.url || data.status === "redirect" || data.status === "success") {
+                    showDownloadButton(data.url || data.url);
+                } else {
+                    wrapper.innerHTML = '<div style="padding: 30px; color: #ff0000; font-weight: 800; text-align: center;">❌ YouTube servers are strictly blocking right now. Please try again later!</div>';
+                }
+            }).catch(err => {
+                wrapper.innerHTML = '<div style="padding: 30px; color: #ff0000; font-weight: 800; text-align: center;">❌ Network Error! Link generation failed.</div>';
+            });
+        }
+
+        function showDownloadButton(downloadUrl) {
+            let wrapper = document.getElementById('yt-iframe-wrapper');
+            wrapper.innerHTML = `
+                <div style="padding: 25px; text-align: center; background: rgba(0, 230, 118, 0.05); height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                    <h3 style="color: #00e676; margin-bottom: 15px; font-weight: 900;">✅ Video Ready To Download!</h3>
+                    <a href="${downloadUrl}" target="_blank" style="background: #00e676; color: #111; padding: 12px 30px; border-radius: 50px; font-weight: 900; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 16px; box-shadow: 0 10px 20px rgba(0,230,118,0.2); transition: 0.3s;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                        Click Here to Save
+                    </a>
+                </div>
+            `;
         }
 
         // Original Theme Switcher

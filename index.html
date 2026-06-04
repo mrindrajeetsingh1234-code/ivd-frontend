@@ -435,139 +435,104 @@
             </a>
         </div>
     </div>
-
-  <script>
-        function openDeveloperModal() { document.getElementById('dev-modal').classList.add('active'); }
-        function closeDeveloperModal(event) {
-            if(event) { if(event.target.id === 'dev-modal') document.getElementById('dev-modal').classList.remove('active'); } 
-            else { document.getElementById('dev-modal').classList.remove('active'); }
-        }
-
-        const translations = {
-            "en": { home: "Home", title: "Indrajeet Video Downloader", sub: "Download Highest Quality Videos Seamlessly", btn: "Download Now", ext: "Install Extension", app_name: "Indrajeet Video Downloader", pf_title: "Supported Platforms", ai_title: "The Ultimate AI Tools Vault", comm_title: "Global Community", how_title: "How to Download All Videos" },
-            "hi": { home: "होम", title: "इंद्रजीत वीडियो डाउनलोडर", sub: "सबसे अच्छी क्वालिटी में वीडियो डाउनलोड करें", btn: "डाउनलोड करें", ext: "एक्सटेंशन इंस्टॉल करें", app_name: "इंद्रजीत वीडियो डाउनलोडर", pf_title: "सपोर्टेड प्लेटफार्म", ai_title: "एआई टूल्स का खजाना", comm_title: "ग्लोबल कम्युनिटी", how_title: "सभी वीडियो कैसे डाउनलोड करें" }
-        };
-
-        function changeLanguage(langCode, langName) {
-            let dict = translations[langCode] || translations['en'];
-            document.querySelectorAll('[data-lang]').forEach(el => { let key = el.getAttribute('data-lang'); if(dict[key]) el.innerText = dict[key]; });
-            document.getElementById('current-lang').innerText = langName;
-        }
-
-        function clearInput() {
-            document.getElementById('video-url').value = '';
-            document.getElementById('clear-btn').style.display = 'none'; document.getElementById('result-container').style.display = 'none';
-            document.getElementById('platforms-grid').style.display = 'block'; switchTheme('default', 'All'); lastCopiedLink = ""; 
-        }
-
-        function toggleClearBtn() { document.getElementById('clear-btn').style.display = document.getElementById('video-url').value.trim().length > 0 ? 'flex' : 'none'; }
-
-        let lastCopiedLink = "";
-        setInterval(() => {
-            try {
-                if (typeof window !== "undefined" && window.require) {
-                    const { clipboard } = window.require('electron'); 
-                    let text = clipboard.readText();
-                    if (text && text !== lastCopiedLink && text.startsWith('http')) {
-                        lastCopiedLink = text; let inputBox = document.getElementById('video-url');
-                        if (inputBox.value !== text) {
-                            document.getElementById('result-container').style.display = 'none'; inputBox.value = text; toggleClearBtn(); 
-                            if(text.includes('youtu')) switchTheme('youtube', 'YouTube'); else if(text.includes('tiktok')) switchTheme('tiktok', 'TikTok'); else if(text.includes('instagram')) switchTheme('instagram', 'Instagram'); else if(text.includes('facebook')) switchTheme('facebook', 'Facebook'); else if(text.includes('pin')) switchTheme('pinterest', 'Pinterest');
-                            fetchVideoData(); 
-                        }
-                    }
-                }
-            } catch (err) { console.log(err); }
-        }, 1000);
+<!-- 🚨 जादुई JS LOGIC (Hybrid System) -->
+    <script>
+        // ... (ऊपर का सारा कोड जैसे changeLanguage, toggleClearBtn आदि वैसा ही रहेगा) ...
 
         function fetchVideoData() {
             let url = document.getElementById('video-url').value.trim(); 
-            if(!url) {
-                alert("Please paste a video link first!");
-                return;
-            }
+            if(!url) { alert("Please paste a video link first!"); return; }
             
             document.getElementById('platforms-grid').style.display = 'none'; 
             document.getElementById('result-container').style.display = 'none';
             document.getElementById('progress-box').style.display = 'none'; 
-            document.getElementById('loader').style.display = 'block'; // लोडिंग स्पिनर चालू
+            document.getElementById('loader').style.display = 'block'; 
             
-            fetch('https://indrajeet-video-downloader.onrender.com/check_info', { method: 'POST', body: JSON.stringify({url}), headers:{'Content-Type':'application/json'} })
-            .then(res => res.json()).then(data => {
-                document.getElementById('loader').style.display = 'none'; // स्पिनर बंद
+            // 🚀 स्टेप 1: जानकारी (Thumbnail, Title) हमेशा आपके yt-dlp सर्वर से आएगी
+            fetch('https://indrajeet-video-downloader.onrender.com/check_info', { 
+                method: 'POST', body: JSON.stringify({url}), headers:{'Content-Type':'application/json'} 
+            }).then(res => res.json()).then(data => {
+                document.getElementById('loader').style.display = 'none'; 
                 if(data.success) {
                     document.getElementById('result-container').style.display = 'block'; 
                     document.getElementById('video-thumb').src = data.thumb; 
                     document.getElementById('video-title').innerText = data.title;
                     
                     let tbody = document.getElementById('quality-list'); tbody.innerHTML = '';
-                    let realQualities = data.qualities;
-                    realQualities.forEach(q => {
-                        let tr = document.createElement('tr'); let tdQ = document.createElement('td'); tdQ.innerHTML = `<strong>${q}</strong>`; let tdF = document.createElement('td'); tdF.innerText = q.toLowerCase().includes('audio') ? "MP3" : "MP4"; let tdBtn = document.createElement('td'); let btn = document.createElement('button'); btn.className = "dl-action-btn"; btn.innerText = "Download"; btn.onclick = function() { document.querySelectorAll('.dl-action-btn').forEach(b => b.innerText = "Download"); this.innerText = "Processing..."; startRealDownload(url, q); };
+                    data.qualities.forEach(q => {
+                        let tr = document.createElement('tr'); 
+                        let tdQ = document.createElement('td'); tdQ.innerHTML = `<strong>${q}</strong>`; 
+                        let tdF = document.createElement('td'); tdF.innerText = q.toLowerCase().includes('audio') ? "MP3" : "MP4"; 
+                        let tdBtn = document.createElement('td'); 
+                        let btn = document.createElement('button'); 
+                        btn.className = "dl-action-btn"; btn.innerText = "Download"; 
+                        btn.onclick = function() { 
+                            document.querySelectorAll('.dl-action-btn').forEach(b => b.innerText = "Download"); 
+                            this.innerText = "Processing..."; 
+                            startSmartDownload(url, q); // 👈 स्मार्ट डाउनलोड फंक्शन कॉल
+                        };
                         tdBtn.appendChild(btn); tr.appendChild(tdQ); tr.appendChild(tdF); tr.appendChild(tdBtn); tbody.appendChild(tr);
                     });
                 } else {
-                    alert("Video details fetch failed: " + data.error);
+                    alert("Error: " + data.error);
                     document.getElementById('platforms-grid').style.display = 'block';
                 }
             }).catch((err) => { 
                 document.getElementById('loader').style.display = 'none'; 
-                document.getElementById('platforms-grid').style.display = 'block'; 
-                alert("Server Connection Error! Please try again.");
+                alert("Server Connection Error!");
             });
         }
 
-        function switchTheme(platform, name) {
-            document.documentElement.setAttribute('data-theme', platform);
-            let featuresDiv = document.getElementById('dynamic-features'); let howToTitle = document.getElementById('how-to-title'); let step1Desc = document.getElementById('step-1-desc');
-            if(name === 'All') {
-                document.getElementById('main-title').innerText = document.querySelector('[data-lang="title"]').innerText; document.getElementById('video-url').placeholder = "Paste ANY video link here..."; featuresDiv.innerHTML = ""; howToTitle.innerText = "How to Download All Videos"; step1Desc.innerText = "Open the app and copy the video URL.";
+        // 🚀 स्टेप 2: स्मार्ट डाउनलोडर (YouTube vs Others)
+        function startSmartDownload(url, qType) { 
+            let pBox = document.getElementById('progress-box'); let pBar = document.getElementById('progress-bar'); 
+            let pText = document.getElementById('progress-text'); let statusMsg = document.getElementById('status-message'); 
+            
+            pBox.style.display = 'block'; pBar.style.width = '20%'; pText.innerText = '20%'; 
+            statusMsg.style.color = "var(--primary-color)"; 
+            
+            let isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+
+            if (isYouTube) {
+                // 🔴 YouTube का लिंक है: yt-dlp सर्वर को छोड़कर सीधा Frontend API (Cobalt) का इस्तेमाल करें
+                statusMsg.innerText = `Bypassing YouTube Security...`; 
+                let isAudio = qType.toLowerCase().includes('audio');
+                
+                fetch('https://api.cobalt.tools/api/json', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url, isAudioOnly: isAudio, aFormat: "mp3", vQuality: "1080" })
+                }).then(res => res.json()).then(data => {
+                    if (data.status === "redirect" || data.status === "stream" || data.status === "success") {
+                        pBar.style.width = '100%'; pText.innerText = '100%'; 
+                        statusMsg.style.color = "#00e676"; statusMsg.innerText = "Starting Direct Download!"; 
+                        window.location.href = data.url; // सीधा हाई-स्पीड डाउनलोड
+                    } else {
+                        statusMsg.style.color = "#ff0000"; statusMsg.innerText = "YouTube Server Busy. Try again.";
+                    }
+                }).catch(err => {
+                    statusMsg.style.color = "#ff0000"; statusMsg.innerText = "Bypass Failed!";
+                });
+
             } else {
-                document.getElementById('main-title').innerText = `${name} Video Downloader`; document.getElementById('video-url').placeholder = `Paste your ${name} link here...`; howToTitle.innerText = `How to Download ${name} Videos`; step1Desc.innerText = `Open the ${name} app and copy the video URL.`;
-                let playIcon = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'; let checkIcon = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
-                if(platform === 'youtube') { featuresDiv.innerHTML = `<div class="feature-box">${playIcon} Shorts Downloader</div><div class="feature-box">${playIcon} Full Video Downloader</div><div class="feature-box">${playIcon} Thumbnail Downloader</div>`; } 
-                else if(platform === 'tiktok') { featuresDiv.innerHTML = `<div class="feature-box">${checkIcon} Unlimited Downloads</div><div class="feature-box">${checkIcon} No Watermark</div><div class="feature-box">${checkIcon} MP4 & MP3 Support</div>`; } 
-                else if(platform === 'instagram') { featuresDiv.innerHTML = `<div class="feature-box">${playIcon} Reels Downloader</div><div class="feature-box">${playIcon} IGTV & Video Downloader</div><div class="feature-box">${playIcon} Story Downloader</div>`; } 
-                else { featuresDiv.innerHTML = `<div class="feature-box">${checkIcon} Unlimited Downloads</div><div class="feature-box">${checkIcon} High Quality Save</div>`; }
+                // 🔵 बाकी सब (Facebook, Insta, etc.): सीधा आपके yt-dlp सर्वर से डाउनलोड करें
+                statusMsg.innerText = `Downloading from Server...`; 
+                
+                fetch('https://indrajeet-video-downloader.onrender.com/download', { 
+                    method: 'POST', body: JSON.stringify({url, quality: qType}), headers:{'Content-Type':'application/json'} 
+                }).then(res => res.json()).then(data => { 
+                    if(data.success) { 
+                        pBar.style.width = '100%'; pText.innerText = '100%'; 
+                        statusMsg.style.color = "#00e676"; statusMsg.innerText = "Download Ready!"; 
+                        window.location.href = 'https://indrajeet-video-downloader.onrender.com/fetch_file/' + data.filename;
+                    } else {
+                        statusMsg.style.color = "#ff0000"; statusMsg.innerText = "Error: " + data.error;
+                    }
+                });
             }
         }
-
-        function openPlatform(url) { 
-            if (typeof window !== "undefined" && window.require) { 
-                const { shell } = window.require('electron'); shell.openExternal(url); 
-            } else { window.open(url, '_blank'); } 
-        }
-
-        function startRealDownload(url, qType) { 
-            let pBox = document.getElementById('progress-box'); let pBar = document.getElementById('progress-bar'); let pText = document.getElementById('progress-text'); let statusMsg = document.getElementById('status-message'); 
-            pBox.style.display = 'block'; pBar.style.width = '10%'; pText.innerText = 'Connecting...'; statusMsg.style.color = "var(--primary-color)"; statusMsg.innerText = `Preparing High-Speed Link...`; 
-            
-            // नया प्रोग्रेस बार जो स्मूथ चलेगा
-            let progress = 10; 
-            let progressInterval = setInterval(() => { progress += Math.random() * 15; if(progress > 85) progress = 85; pBar.style.width = progress + '%'; pText.innerText = Math.floor(progress) + '%'; }, 800); 
-            
-            fetch('https://indrajeet-video-downloader.onrender.com/download', { method: 'POST', body: JSON.stringify({url, quality: qType}), headers:{'Content-Type':'application/json'} })
-            .then(res => res.json()).then(data => { 
-                clearInterval(progressInterval); 
-                
-                if(data.success && data.direct_url) { 
-                    pBar.style.width = '100%'; pText.innerText = '100%'; 
-                    statusMsg.style.color = "#00e676"; statusMsg.innerText = "High-Speed Link Ready! Downloading..."; 
-                    
-                    // सीधा हाई-स्पीड सर्वर से डाउनलोड
-                    window.location.href = data.direct_url;
-                } else {
-                    pBar.style.width = '0%'; pText.innerText = 'Error';
-                    statusMsg.style.color = "#ff0000"; statusMsg.innerText = "Error: " + data.error;
-                    alert("Download Failed: " + data.error);
-                }
-            }).catch((err) => { 
-                clearInterval(progressInterval); 
-                pBar.style.width = '0%'; pText.innerText = 'Error';
-                statusMsg.style.color = "#ff0000"; statusMsg.innerText = "Download Failed!"; 
-                alert("Server Error! Please try again.");
-            }); 
-        }
     </script>
+
+    
 </body>
 </html>

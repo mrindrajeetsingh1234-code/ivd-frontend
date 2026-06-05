@@ -183,6 +183,43 @@
         .dev-contact-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--primary-color); color: white; padding: 12px 25px; border-radius: 50px; font-weight: 700; text-decoration: none; transition: 0.3s; }
         .dev-contact-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(26,115,232,0.3); color: white; }
         .dev-contact-btn svg { width: 20px; height: 20px; fill: currentColor; }
+        /* 📱 MOBILE RESPONSIVE DESIGN (सिर्फ मोबाइल के लिए) */
+        @media (max-width: 768px) {
+            /* Navbar Setup */
+            .navbar { padding: 0 15px; height: 70px; }
+            .nav-center, .made-in-india, .ext-btn { display: none !important; } /* जगह बचाने के लिए मेनू हाइड करें */
+            .logo-text { font-size: 15px; padding-right: 0; }
+            .lang-dropdown span, .lang-dropdown svg:last-child { display: none; } /* भाषा में सिर्फ झंडा दिखेगा */
+            
+            /* Hero & Search Section */
+            .hero-section { padding: 110px 15px 40px 15px; border-radius: 0 0 30px 30px; }
+            .hero-section h1 { font-size: 32px; }
+            .hero-section p { font-size: 13px; margin-bottom: 25px; }
+            .search-container { flex-direction: column; background: transparent; border: none; box-shadow: none; padding: 0; gap: 15px; }
+            .input-wrapper { width: 100%; background: var(--box-bg); border-radius: 30px; border: 2px solid var(--primary-color); }
+            .search-btn { width: 100%; border-radius: 30px; padding: 16px; font-size: 16px; }
+            .feature-box { font-size: 13px; padding: 8px 15px; }
+
+            /* Grids (डिब्बों को मोबाइल के हिसाब से सेट करना) */
+            .platform-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; } /* मोबाइल में 2 डिब्बे */
+            .steps-grid, .ai-grid, .footer-grid { grid-template-columns: 1fr; gap: 20px; } /* मोबाइल में 1 डिब्बा (ऊपर-नीचे) */
+            .platform-item { padding: 20px; font-size: 14px; }
+            .platform-item svg { width: 40px; height: 40px; }
+            
+            /* Results & Video Section */
+            .result-container { padding: 20px; margin-top: 20px; }
+            .video-header { flex-direction: column; align-items: center; text-align: center; gap: 20px; }
+            #video-thumb, #player-container { max-width: 100%; }
+            .video-info h2 { font-size: 18px; }
+            table th, table td { padding: 12px 5px; font-size: 12px; }
+            .dl-action-btn { padding: 10px 15px; font-size: 12px; }
+            
+            /* Other Adjustments */
+            .how-to-use { margin-top: 50px; }
+            .how-to-use h2, .ai-section h2 { font-size: 24px; margin-bottom: 30px; }
+            .ai-section { margin-top: 60px; margin-bottom: 40px; }
+            .footer { padding: 50px 20px 30px 20px; }
+        }
     </style>
 </head>
 <body>

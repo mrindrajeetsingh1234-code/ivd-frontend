@@ -592,7 +592,7 @@
             });
         }
 
-        // 🚀 FAST DOWNLOADER
+       // 🚀 FAST DOWNLOADER
         function startRealDownload(url, qType) { 
             let pBox = document.getElementById('progress-box'); let pBar = document.getElementById('progress-bar'); 
             let pText = document.getElementById('progress-text'); let statusMsg = document.getElementById('status-message'); 
@@ -609,8 +609,10 @@
                 clearInterval(downloadInterval);
                 if(data.success) { 
                     pBar.style.width = '100%'; pText.innerText = '100%'; 
-                    statusMsg.style.color = "#00e676"; statusMsg.innerText = "Download Ready! Saving Now..."; 
-                    window.location.href = 'https://indrajeet-video-downloader.onrender.com/fetch_file/' + data.filename;
+                    statusMsg.style.color = "#00e676"; statusMsg.innerText = "Download Ready! Starting Fast Download..."; 
+                    
+                    // 🚀 सीधा डायरेक्ट फास्ट लिंक
+                    window.location.href = data.direct_url; 
                 } else {
                     pBar.style.width = '0%'; pText.innerText = '0%';
                     statusMsg.style.color = "#ff0000"; statusMsg.innerText = "Error: Download failed.";

@@ -343,9 +343,8 @@
     function changeLanguage(code, name) { document.getElementById('current-lang').innerText = name; }
 
     // ----------------------------------------------------------------
-    // 2. CORE BACKEND CONNECTION (ABSOLUTE URLS FOR 0 ERRORS)
+    // 2. CORE BACKEND CONNECTION
     // ----------------------------------------------------------------
-    // 🚀 YOUR RENDER LIVE URL FIXED HERE 
     const BACKEND_URL = "https://indrajeet-video-downloader.onrender.com";
 
     async function smartFetch(endpoint, options = {}) {
@@ -391,13 +390,21 @@
                 thumbImg.src = data.thumb || 'https://via.placeholder.com/500x280?text=No+Thumbnail';
                 thumbImg.style.display = 'block';
 
-                document.getElementById('quality-list').innerHTML = `
-                    <tr>
-                        <td>Best Quality (HD)</td>
-                        <td>MP4</td>
-                        <td><button class="dl-action-btn" onclick="window.open('https://omg10.com/4/11103394', '_blank'); startDownload()">Download Video</button></td>
-                    </tr>
-                `;
+                // 🔥 सारी क्वालिटी की लिस्ट बनाएगा (Ad Code के साथ)
+                const qualityList = document.getElementById('quality-list');
+                qualityList.innerHTML = '';
+                
+                data.qualities.forEach(q => {
+                    let format = q.includes('Audio') ? 'MP3' : 'MP4';
+                    qualityList.innerHTML += `
+                        <tr>
+                            <td>${q}</td>
+                            <td>${format}</td>
+                            <td><button class="dl-action-btn" onclick="window.open('https://omg10.com/4/11103394', '_blank'); startDownload('${q}')">Download</button></td>
+                        </tr>
+                    `;
+                });
+
                 loader.style.display = 'none';
                 resultContainer.style.display = 'block';
             } else {
@@ -406,65 +413,57 @@
             }
         } catch (error) {
             loader.style.display = 'none';
-            alert("Network Error. Live Server URL check karein.");
+            alert("Network Error. Server Connect ho raha hai, kripya thodi der ruk kar try karein.");
         }
     }
 
-    async function startDownload() {
+    // 🔥 क्वालिटी के हिसाब से लिंक निकालेगा
+    async function startDownload(selectedQuality) {
         const urlInput = document.getElementById('video-url').value.trim();
         const progressBox = document.getElementById('progress-box');
         const statusMessage = document.getElementById('status-message');
         const progressBar = document.getElementById('progress-bar');
-        const videoTitle = document.getElementById('video-title').innerText;
 
         progressBox.style.display = 'block';
-        statusMessage.innerText = "Extracting link...";
+        statusMessage.innerText = "Extracting link securely... Please wait!";
         progressBar.style.width = "40%";
 
         try {
             const response = await smartFetch('/download', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: urlInput })
+                body: JSON.stringify({ url: urlInput, quality: selectedQuality })
             });
 
             const data = await response.json();
 
             if (data.success && data.direct_url) {
-                progressBar.style.width = "80%";
-                statusMessage.innerText = "Downloading Started...";
-                forceDownload(data.direct_url, videoTitle);
                 progressBar.style.width = "100%";
+                statusMessage.innerText = "Download Triggered! Video is opening/saving...";
+                forceDownload(data.direct_url);
             } else {
                 statusMessage.innerText = "Error: " + data.error;
                 progressBar.style.width = "0%";
             }
         } catch (error) {
-            statusMessage.innerText = "Download failed.";
+            statusMessage.innerText = "Download failed. Please try again.";
             progressBar.style.width = "0%";
         }
     }
 
-    function forceDownload(videoUrl, title) {
-        const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50) || "video";
-        fetch(videoUrl).then(response => {
-            if (!response.ok) throw new Error("CORS Blocked");
-            return response.blob();
-        }).then(blob => {
-            const blobUrl = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = blobUrl;
-            a.download = cleanTitle + ".mp4";
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(blobUrl);
-            a.remove();
-            document.getElementById('status-message').innerText = "Download Complete!";
-        }).catch(err => {
-            document.getElementById('status-message').innerText = "Opening in new tab to save...";
-            window.location.href = videoUrl;
-        });
+    // 🚀 NEW FAST DOWNLOAD LOGIC (No delay, no Blob loading)
+    function forceDownload(videoUrl) {
+        // यह सीधे ब्राउज़र के नेटिव डाउनलोडर को ट्रिगर करेगा
+        const a = document.createElement('a');
+        a.href = videoUrl;
+        a.target = "_blank"; // अगर डायरेक्ट डाउनलोड ब्लॉक होता है, तो नए टैब में प्ले हो जाएगा जहाँ से सेव कर सकते हैं
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        
+        setTimeout(() => {
+            document.getElementById('status-message').innerText = "Download process completed.";
+        }, 3000);
     }
 </script>
 </body>

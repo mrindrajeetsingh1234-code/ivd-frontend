@@ -343,20 +343,21 @@
     function changeLanguage(code, name) { document.getElementById('current-lang').innerText = name; }
 
     // ----------------------------------------------------------------
-    // 2. CORE BACKEND CONNECTION (SERVER DOWNLOAD METHOD)
+    // 2. CORE BACKEND CONNECTION (ABSOLUTE URLS)
     // ----------------------------------------------------------------
     const BACKEND_URL = "https://indrajeet-video-downloader.onrender.com";
 
+    // 🚀 SmartFetch: यह सर्वर के जागने तक इंतज़ार करेगा, 'Network Error' नहीं देगा
     async function smartFetch(endpoint, options = {}) {
         const fullUrl = BACKEND_URL + endpoint;
         try {
             const response = await fetch(fullUrl, options);
+            if (!response.ok) throw new Error("Server not ready");
             return response;
         } catch (error) {
-            console.log("Server waking up, retrying in 5 seconds...");
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            const retryResponse = await fetch(fullUrl, options);
-            return retryResponse;
+            console.log("Server waking up, retrying...");
+            await new Promise(resolve => setTimeout(resolve, 5000)); // 5 सेकंड इंतज़ार
+            return await fetch(fullUrl, options);
         }
     }
 
@@ -390,7 +391,6 @@
                 thumbImg.src = data.thumb || 'https://via.placeholder.com/500x280?text=No+Thumbnail';
                 thumbImg.style.display = 'block';
 
-                // 🔥 क्वालिटी की लिस्ट टेबल में डालना
                 const qualityList = document.getElementById('quality-list');
                 qualityList.innerHTML = '';
                 
@@ -400,7 +400,11 @@
                         <tr>
                             <td>${q}</td>
                             <td>${format}</td>
-                            <td><button class="dl-action-btn" onclick="window.open('https://omg10.com/4/11103394', '_blank'); startDownload('${q}')">Download</button></td>
+                            <td>
+                                <button class="dl-action-btn" onclick="window.open('https://omg10.com/4/11103394', '_blank'); startDownload('${q}')">
+                                    Download
+                                </button>
+                            </td>
                         </tr>
                     `;
                 });
@@ -413,7 +417,7 @@
             }
         } catch (error) {
             loader.style.display = 'none';
-            alert("Network Error. Server Connect ho raha hai, kripya thodi der ruk kar try karein.");
+            alert("Network Error: Server abhi busy hai, 5 second mein retry karein.");
         }
     }
 
@@ -424,7 +428,6 @@
         const progressBar = document.getElementById('progress-bar');
 
         progressBox.style.display = 'block';
-        // 🔥 यूज़र को बताना कि इसमें समय लग सकता है
         statusMessage.innerText = "सर्वर वीडियो तैयार कर रहा है... (कृपया 1-2 मिनट प्रतीक्षा करें)";
         progressBar.style.width = "50%";
 
@@ -439,14 +442,12 @@
 
             if (data.success && data.filename) {
                 progressBar.style.width = "100%";
-                statusMessage.innerText = "Download Ready! Saving to your device...";
+                statusMessage.innerText = "Download Ready! Saving file...";
                 
-                // 🔥 पुराना पक्का तरीका: सीधा ब्राउज़र डाउनलोड शुरू करेगा
+                // 🔥 सर्वर से फाइल डाउनलोड करने का सही तरीका
                 window.location.href = BACKEND_URL + "/fetch_file/" + encodeURIComponent(data.filename);
                 
-                setTimeout(() => {
-                    statusMessage.innerText = "Download Complete!";
-                }, 3000);
+                setTimeout(() => { statusMessage.innerText = "Download Complete!"; }, 3000);
             } else {
                 statusMessage.innerText = "Error: " + data.error;
                 progressBar.style.width = "0%";

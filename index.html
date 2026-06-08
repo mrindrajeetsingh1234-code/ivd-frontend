@@ -325,64 +325,180 @@
 <script>
     const BACKEND_URL = "https://indrajeet-video-downloader.onrender.com";
 
-    // Cross Button Logic
-    function toggleClearBtn() { document.getElementById('clear-btn').style.display = document.getElementById('video-url').value ? 'block' : 'none'; }
-    function clearInput() { document.getElementById('video-url').value = ''; toggleClearBtn(); }
-
-    async function checkVideoInfo() {
-        const url = document.getElementById('video-url').value.trim();
-        if (!url) return alert("URL daalo!");
-        document.getElementById('loader').style.display = 'block';
-        
-        try {
-            const res = await fetch(BACKEND_URL + '/check_info', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({url: url})
-            });
-            const data = await res.json();
-            document.getElementById('loader').style.display = 'none';
-            
-            if(data.success) {
-                document.getElementById('video-title').innerText = data.title;
-                document.getElementById('video-thumb').src = data.thumb;
-                document.getElementById('video-thumb').style.display = 'block';
-                
-                const qList = document.getElementById('quality-list');
-                qList.innerHTML = '';
-                data.qualities.forEach(q => {
-                    qList.innerHTML += `<tr><td>${q}</td><td><button class="dl-action-btn" onclick="startDownload('${q}')">Download</button></td></tr>`;
-                });
-                document.getElementById('result-container').style.display = 'block';
-            }
-        } catch(e) { document.getElementById('loader').style.display = 'none'; alert("Error!"); }
+    // 1. Theme Switching Logic
+    function switchTheme(platform, name) {
+        document.documentElement.setAttribute('data-theme', platform);
+        let title = document.getElementById('main-title');
+        let input = document.getElementById('video-url');
+        if(name === 'All') {
+            if(title) title.innerText = "Indrajeet Video Downloader";
+            if(input) input.placeholder = "Paste ANY video link here...";
+        } else {
+            if(title) title.innerText = name + " Downloader";
+            if(input) input.placeholder = "Paste " + name + " link here...";
+        }
     }
 
-    async function startDownload(q) {
+    // 2. Cross Button & Auto-Clear Logic
+    function toggleClearBtn() { 
+        let val = document.getElementById('video-url').value.trim();
+        document.getElementById('clear-btn').style.display = val.length > 0 ? 'block' : 'none'; 
+    }
+    function clearInput() { 
+        document.getElementById('video-url').value = ''; 
+        toggleClearBtn(); 
+        document.getElementById('result-container').style.display = 'none';
+        document.getElementById('progress-box').style.display = 'none';
+        document.getElementById('platforms-grid').style.display = 'block';
+    }
+
+    // 3. Smart Fetch (Anti "Server Busy")
+    async function smartFetch(endpoint, bodyData, retries = 3) {
+        for (let i = 0; i < retries; i++) {
+            try {
+                const res = await fetch(BACKEND_URL + endpoint, {
+                    method: 'POST',
+                    body: JSON.stringify(bodyData),
+                    headers: {'Content-Type': 'application/json'}
+                });
+                if (res.ok) return await res.json();
+            } catch (e) {
+                if (i === retries - 1) throw e;
+                await new Promise(r => setTimeout(r, 3000));
+            }
+        }
+    }
+
+    // 4. Fetch Video Info + Ads in Download Button
+    async function checkVideoInfo() {
         const url = document.getElementById('video-url').value.trim();
+        if (!url) return alert("Please enter a valid URL!");
+        
+        document.getElementById('platforms-grid').style.display = 'none';
+        document.getElementById('loader').style.display = 'block';
+        document.getElementById('result-container').style.display = 'none';
+        document.getElementById('progress-box').style.display = 'none';
+        
+        try {
+            const data = await smartFetch('/check_info', {url: url});
+            document.getElementById('loader').style.display = 'none';
+            
+            if(data && data.success) {
+                document.getElementById('video-title').innerText = data.title || "Video Ready";
+                document.getElementById('video-thumb').src = data.thumb || "https://via.placeholder.com/380x214?text=No+Thumbnail";
+                document.getElementById('video-thumb').style.display = 'block';
+                
+                const metaBox = document.getElementById('meta-box');
+                if(metaBox) metaBox.value = (data.title || "Video") + "\n\nDownloaded via IVD";
+
+                const qList = document.getElementById('quality-list');
+                qList.innerHTML = '';
+                
+                let qualities = (data.qualities && data.qualities.length > 0) ? data.qualities : ['Best Quality (MP4)', 'Audio (MP3)'];
+                
+                qualities.forEach(q => {
+                    let format = q.toLowerCase().includes('audio') || q.toLowerCase().includes('mp3') ? "MP3" : "MP4";
+                    // 📢 ADS TAG ON DOWNLOAD BUTTON
+                    qList.innerHTML += `<tr>
+                        <td><strong>${q}</strong></td>
+                        <td>${format}</td>
+                        <td>
+                            <div onclick="window.open('https://omg10.com/4/11103394', '_blank')">
+                                <button class="dl-action-btn" onclick="startDownload('${url}', '${q}')">Download</button>
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+                document.getElementById('result-container').style.display = 'block';
+            } else {
+                alert("Error: " + (data ? data.error : "Failed to fetch"));
+                document.getElementById('platforms-grid').style.display = 'block';
+            }
+        } catch(e) { 
+            document.getElementById('loader').style.display = 'none'; 
+            alert("Server busy, try again!"); 
+            document.getElementById('platforms-grid').style.display = 'block';
+        }
+    }
+
+    // 5. Download Process + Auto-Clear Input
+    async function startDownload(url, q) {
         const status = document.getElementById('status-message');
         const progressBox = document.getElementById('progress-box');
+        const pBar = document.getElementById('progress-bar');
         
         progressBox.style.display = 'block';
-        status.innerText = "Video Server par download ho rahi hai... Wait karein!";
+        pBar.style.width = '0%';
+        status.innerText = "Processing video on server... Please wait!";
+        status.style.color = "var(--primary-color)";
         
-        const res = await fetch(BACKEND_URL + '/download', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({url: url})
-        });
-        const data = await res.json();
+        let progress = 0;
+        let interval = setInterval(() => {
+            if(progress < 90) progress += 5;
+            pBar.style.width = progress + '%';
+        }, 1000);
         
-        if(data.success) {
-            const link = document.createElement('a');
-            link.href = BACKEND_URL + "/files/" + encodeURIComponent(data.filename);
-            link.setAttribute('download', data.filename);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            status.innerText = "Download Complete!";
-        } else {
-            status.innerText = "Error: " + data.error;
+        try {
+            const data = await smartFetch('/download', {url: url, quality: q});
+            clearInterval(interval);
+            
+            if(data && data.success && data.filename) {
+                pBar.style.width = '100%';
+                status.innerText = "Download Complete!";
+                status.style.color = "#00e676";
+                
+                const link = document.createElement('a');
+                link.href = BACKEND_URL + "/files/" + encodeURIComponent(data.filename);
+                link.setAttribute('download', data.filename);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+
+                // 🔥 AUTO CLEAR INPUT AFTER 3 SECONDS
+                setTimeout(() => {
+                    clearInput();
+                }, 3000);
+
+            } else {
+                status.innerText = "Error: " + (data ? data.error : "Failed");
+                status.style.color = "#ff0000";
+            }
+        } catch(e) {
+            clearInterval(interval);
+            status.innerText = "Server Timeout. Try again!";
+            status.style.color = "#ff0000";
+        }
+    }
+    
+    // Extra Functions
+    function copyMetadata() {
+        const meta = document.getElementById('meta-box');
+        if(meta) { navigator.clipboard.writeText(meta.value); alert("Copied!"); }
+    }
+    
+    async function downloadThumbnail() { 
+        let src = document.getElementById('video-thumb').src; 
+        if(!src) return; 
+        try { 
+            let response = await fetch(src); 
+            let blob = await response.blob(); 
+            let blobUrl = URL.createObjectURL(blob); 
+            let a = document.createElement('a'); 
+            a.href = blobUrl; 
+            a.download = 'IVD_Thumbnail.jpg'; 
+            document.body.appendChild(a); 
+            a.click(); 
+            document.body.removeChild(a); 
+            URL.revokeObjectURL(blobUrl); 
+        } catch (err) { window.open(src, '_blank'); } 
+    }
+
+    function openPlatform(url) { window.open(url, '_blank'); }
+    function downloadFakeExtension() { alert("Extension coming soon!"); }
+    function openDeveloperModal() { document.getElementById('dev-modal').classList.add('active'); }
+    function closeDeveloperModal(e) { 
+        if(!e || e.target.id === 'dev-modal' || e.target.closest('.dev-close')) {
+            document.getElementById('dev-modal').classList.remove('active'); 
         }
     }
 </script>

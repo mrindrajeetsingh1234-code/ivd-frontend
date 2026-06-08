@@ -323,148 +323,67 @@
     </div>
 
 <script>
-    // ----------------------------------------------------------------
-    // 1. UI & HELPER FUNCTIONS
-    // ----------------------------------------------------------------
-    function toggleClearBtn() { document.getElementById('clear-btn').style.display = document.getElementById('video-url').value ? 'block' : 'none'; }
-    function clearInput() { document.getElementById('video-url').value = ''; toggleClearBtn(); }
-    function switchTheme(theme) { document.documentElement.setAttribute('data-theme', theme); }
-    function downloadFakeExtension() { alert("Extension is coming soon!"); }
-    function openDeveloperModal() { document.getElementById('dev-modal').classList.add('active'); }
-    function closeDeveloperModal(e) { if (!e || e.target.classList.contains('dev-modal-overlay') || e.target.classList.contains('dev-close')) { document.getElementById('dev-modal').classList.remove('active'); } }
-    function downloadThumbnail() { const thumbUrl = document.getElementById('video-thumb').src; if (thumbUrl) window.open(thumbUrl, '_blank'); }
-    function openPlatform(url) { window.open(url, '_blank'); }
-    function copyMetadata() {
-        const metaBox = document.getElementById('meta-box');
-        if(metaBox && metaBox.value) {
-            navigator.clipboard.writeText(metaBox.value).then(() => { alert("Copied to clipboard!"); }).catch(err => { console.error('Failed to copy: ', err); });
-        } else { alert("Nothing to copy!"); }
-    }
-    function changeLanguage(code, name) { document.getElementById('current-lang').innerText = name; }
-
-    // ----------------------------------------------------------------
-    // 2. CORE BACKEND CONNECTION (ABSOLUTE URLS FOR 0 ERRORS)
-    // ----------------------------------------------------------------
-    // 🚀 YOUR RENDER LIVE URL FIXED HERE 
     const BACKEND_URL = "https://indrajeet-video-downloader.onrender.com";
 
-    async function smartFetch(endpoint, options = {}) {
-        const fullUrl = BACKEND_URL + endpoint;
-        try {
-            const response = await fetch(fullUrl, options);
-            return response;
-        } catch (error) {
-            console.log("Retrying in 5 seconds...");
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            const retryResponse = await fetch(fullUrl, options);
-            return retryResponse;
-        }
-    }
+    // Cross Button Logic
+    function toggleClearBtn() { document.getElementById('clear-btn').style.display = document.getElementById('video-url').value ? 'block' : 'none'; }
+    function clearInput() { document.getElementById('video-url').value = ''; toggleClearBtn(); }
 
     async function checkVideoInfo() {
-        const urlInput = document.getElementById('video-url').value.trim();
-        const loader = document.getElementById('loader');
-        const resultContainer = document.getElementById('result-container');
+        const url = document.getElementById('video-url').value.trim();
+        if (!url) return alert("URL daalo!");
+        document.getElementById('loader').style.display = 'block';
+        
+        try {
+            const res = await fetch(BACKEND_URL + '/check_info', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({url: url})
+            });
+            const data = await res.json();
+            document.getElementById('loader').style.display = 'none';
+            
+            if(data.success) {
+                document.getElementById('video-title').innerText = data.title;
+                document.getElementById('video-thumb').src = data.thumb;
+                document.getElementById('video-thumb').style.display = 'block';
+                
+                const qList = document.getElementById('quality-list');
+                qList.innerHTML = '';
+                data.qualities.forEach(q => {
+                    qList.innerHTML += `<tr><td>${q}</td><td><button class="dl-action-btn" onclick="startDownload('${q}')">Download</button></td></tr>`;
+                });
+                document.getElementById('result-container').style.display = 'block';
+            }
+        } catch(e) { document.getElementById('loader').style.display = 'none'; alert("Error!"); }
+    }
+
+    async function startDownload(q) {
+        const url = document.getElementById('video-url').value.trim();
+        const status = document.getElementById('status-message');
         const progressBox = document.getElementById('progress-box');
         
-        if (!urlInput) { alert("Please enter a valid URL!"); return; }
-
-        loader.style.display = 'block';
-        resultContainer.style.display = 'none';
-        progressBox.style.display = 'none';
-
-        try {
-            const response = await smartFetch('/check_info', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: urlInput })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                document.getElementById('video-title').innerText = data.title || "Video";
-                const metaBox = document.getElementById('meta-box');
-                if (metaBox) metaBox.value = `${data.title || "Video"}\n\nDownloaded via: Indrajeet Video Downloader`;
-                
-                const thumbImg = document.getElementById('video-thumb');
-                thumbImg.src = data.thumb || 'https://via.placeholder.com/500x280?text=No+Thumbnail';
-                thumbImg.style.display = 'block';
-
-                document.getElementById('quality-list').innerHTML = `
-                    <tr>
-                        <td>Best Quality (HD)</td>
-                        <td>MP4</td>
-                        <td><button class="dl-action-btn" onclick="window.open('https://omg10.com/4/11103394', '_blank'); startDownload()">Download Video</button></td>
-                    </tr>
-                `;
-                loader.style.display = 'none';
-                resultContainer.style.display = 'block';
-            } else {
-                loader.style.display = 'none';
-                alert("Error: " + data.error);
-            }
-        } catch (error) {
-            loader.style.display = 'none';
-            alert("Network Error. Live Server URL check karein.");
-        }
-    }
-
-    async function startDownload() {
-        const urlInput = document.getElementById('video-url').value.trim();
-        const progressBox = document.getElementById('progress-box');
-        const statusMessage = document.getElementById('status-message');
-        const progressBar = document.getElementById('progress-bar');
-        const videoTitle = document.getElementById('video-title').innerText;
-
         progressBox.style.display = 'block';
-        statusMessage.innerText = "Extracting link...";
-        progressBar.style.width = "40%";
-
-        try {
-            const response = await smartFetch('/download', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: urlInput })
-            });
-
-            const data = await response.json();
-
-            if (data.success && data.direct_url) {
-                progressBar.style.width = "80%";
-                statusMessage.innerText = "Downloading Started...";
-                forceDownload(data.direct_url, videoTitle);
-                progressBar.style.width = "100%";
-            } else {
-                statusMessage.innerText = "Error: " + data.error;
-                progressBar.style.width = "0%";
-            }
-        } catch (error) {
-            statusMessage.innerText = "Download failed.";
-            progressBar.style.width = "0%";
-        }
-    }
-
-    function forceDownload(videoUrl, title) {
-        const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50) || "video";
-        fetch(videoUrl).then(response => {
-            if (!response.ok) throw new Error("CORS Blocked");
-            return response.blob();
-        }).then(blob => {
-            const blobUrl = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = blobUrl;
-            a.download = cleanTitle + ".mp4";
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(blobUrl);
-            a.remove();
-            document.getElementById('status-message').innerText = "Download Complete!";
-        }).catch(err => {
-            document.getElementById('status-message').innerText = "Opening in new tab to save...";
-            window.location.href = videoUrl;
+        status.innerText = "Video Server par download ho rahi hai... Wait karein!";
+        
+        const res = await fetch(BACKEND_URL + '/download', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({url: url})
         });
+        const data = await res.json();
+        
+        if(data.success) {
+            const link = document.createElement('a');
+            link.href = BACKEND_URL + "/files/" + encodeURIComponent(data.filename);
+            link.setAttribute('download', data.filename);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            status.innerText = "Download Complete!";
+        } else {
+            status.innerText = "Error: " + data.error;
+        }
     }
 </script>
 </body>

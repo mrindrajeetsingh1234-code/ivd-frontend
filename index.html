@@ -441,200 +441,203 @@
         </div>
     </div>
 
-    <script>
-        // ----------------------------------------------------------------
-        // 1. UI & HELPER FUNCTIONS
-        // ----------------------------------------------------------------
-        function toggleClearBtn() {
-            document.getElementById('clear-btn').style.display = document.getElementById('video-url').value ? 'block' : 'none';
-        }
+ <script>
+    // ----------------------------------------------------------------
+    // 1. UI & HELPER FUNCTIONS
+    // ----------------------------------------------------------------
+    function toggleClearBtn() {
+        document.getElementById('clear-btn').style.display = document.getElementById('video-url').value ? 'block' : 'none';
+    }
 
-        function clearInput() {
-            document.getElementById('video-url').value = '';
-            toggleClearBtn();
-        }
+    function clearInput() {
+        document.getElementById('video-url').value = '';
+        toggleClearBtn();
+    }
 
-        function switchTheme(theme, platformName) {
-            document.documentElement.setAttribute('data-theme', theme);
-        }
+    function switchTheme(theme, platformName) {
+        document.documentElement.setAttribute('data-theme', theme);
+    }
 
-        function downloadFakeExtension() {
-            alert("Extension is coming soon!");
-        }
+    function downloadFakeExtension() {
+        alert("Extension is coming soon!");
+    }
 
-        function openDeveloperModal() {
-            document.getElementById('dev-modal').classList.add('active');
-        }
+    function openDeveloperModal() {
+        document.getElementById('dev-modal').classList.add('active');
+    }
 
-        function closeDeveloperModal(e) {
-            if (!e || e.target.classList.contains('dev-modal-overlay') || e.target.classList.contains('dev-close')) {
-                document.getElementById('dev-modal').classList.remove('active');
-            }
+    function closeDeveloperModal(e) {
+        if (!e || e.target.classList.contains('dev-modal-overlay') || e.target.classList.contains('dev-close')) {
+            document.getElementById('dev-modal').classList.remove('active');
         }
+    }
 
-        function downloadThumbnail() {
-            const thumbUrl = document.getElementById('video-thumb').src;
-            if (thumbUrl) window.open(thumbUrl, '_blank');
+    function downloadThumbnail() {
+        const thumbUrl = document.getElementById('video-thumb').src;
+        if (thumbUrl) window.open(thumbUrl, '_blank');
+    }
+
+    function openPlatform(url) {
+        window.open(url, '_blank');
+    }
+
+    function copyMetadata() {
+        const metaBox = document.getElementById('meta-box');
+        if(metaBox && metaBox.value) {
+            navigator.clipboard.writeText(metaBox.value).then(() => {
+                alert("Copied to clipboard!");
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        } else {
+            alert("Nothing to copy!");
         }
+    }
 
-        // 🟢 RESTORED MISSING UI FUNCTIONS
-        function openPlatform(url) {
-            window.open(url, '_blank');
-        }
+    function changeLanguage(code, name) {
+        document.getElementById('current-lang').innerText = name;
+    }
 
-        function copyMetadata() {
-            const metaBox = document.getElementById('meta-box');
-            if(metaBox && metaBox.value) {
-                navigator.clipboard.writeText(metaBox.value).then(() => {
-                    alert("Copied to clipboard!");
-                }).catch(err => {
-                    console.error('Failed to copy: ', err);
-                });
-            } else {
-                alert("Nothing to copy!");
-            }
-        }
-
-        function changeLanguage(code, name) {
-            document.getElementById('current-lang').innerText = name;
-        }
-
-        // ----------------------------------------------------------------
-        // 2. CORE BACKEND CONNECTION FUNCTIONS
-        // ----------------------------------------------------------------
-        async function fetchWithTimeout(resource, options = {}) {
-            const timeout = 60000; // 60 seconds
-            const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), timeout);
-            const response = await fetch(resource, { ...options, signal: controller.signal });
-            clearTimeout(id);
+    // ----------------------------------------------------------------
+    // 2. CORE BACKEND CONNECTION (NO TIMEOUT ERROR)
+    // ----------------------------------------------------------------
+    // 🚀 Timeout हटा दिया गया है। अब यह सर्वर के जागने तक शांति से इंतज़ार करेगा।
+    async function smartFetch(url, options = {}) {
+        try {
+            const response = await fetch(url, options);
             return response;
+        } catch (error) {
+            // अगर कनेक्शन टूटता है, तो यह 5 सेकंड बाद खुद दोबारा कोशिश करेगा
+            console.log("Server waking up, retrying in 5 seconds...");
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            const retryResponse = await fetch(url, options);
+            return retryResponse;
+        }
+    }
+
+    async function checkVideoInfo() {
+        const urlInput = document.getElementById('video-url').value.trim();
+        const loader = document.getElementById('loader');
+        const resultContainer = document.getElementById('result-container');
+        const progressBox = document.getElementById('progress-box');
+        const loaderText = loader.querySelector('.loader-text'); // Loader का टेक्स्ट
+
+        if (!urlInput) {
+            alert("Please enter a valid URL!");
+            return;
         }
 
-        async function checkVideoInfo() {
-            const urlInput = document.getElementById('video-url').value.trim();
-            const loader = document.getElementById('loader');
-            const resultContainer = document.getElementById('result-container');
-            const progressBox = document.getElementById('progress-box');
+        // UI Reset
+        loader.style.display = 'block';
+        resultContainer.style.display = 'none';
+        progressBox.style.display = 'none';
+        if(loaderText) loaderText.innerText = "Connecting... (Please wait up to 40 seconds if server is waking up)";
 
-            if (!urlInput) {
-                alert("Please enter a valid URL!");
-                return;
-            }
+        try {
+            const response = await smartFetch('/check_info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: urlInput })
+            });
 
-            // UI Reset
-            loader.style.display = 'block';
-            resultContainer.style.display = 'none';
-            progressBox.style.display = 'none';
+            const data = await response.json();
 
-            try {
-                const response = await fetchWithTimeout('/check_info', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: urlInput })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    document.getElementById('video-title').innerText = data.title || "Video";
-                    
-                    // Populate Metadata Box
-                    const metaBox = document.getElementById('meta-box');
-                    if (metaBox) {
-                        metaBox.value = `${data.title || "Video"}\n\nDownloaded via: Indrajeet Video Downloader`;
-                    }
-
-                    const thumbImg = document.getElementById('video-thumb');
-                    thumbImg.src = data.thumb || 'https://via.placeholder.com/500x280?text=No+Thumbnail';
-                    thumbImg.style.display = 'block';
-
-                    // 🚀 AD CODE 4: INJECTED INTO THE DOWNLOAD BUTTON (Table Row)
-                    document.getElementById('quality-list').innerHTML = `
-                        <tr>
-                            <td>Best Quality (HD)</td>
-                            <td>MP4</td>
-                            <td><button class="dl-action-btn" onclick="window.open('https://omg10.com/4/11103394', '_blank'); startDownload()">Download Video</button></td>
-                        </tr>
-                    `;
-
-                    loader.style.display = 'none';
-                    resultContainer.style.display = 'block';
-                } else {
-                    loader.style.display = 'none';
-                    alert("Error: " + data.error);
+            if (data.success) {
+                document.getElementById('video-title').innerText = data.title || "Video";
+                
+                const metaBox = document.getElementById('meta-box');
+                if (metaBox) {
+                    metaBox.value = `${data.title || "Video"}\n\nDownloaded via: Indrajeet Video Downloader`;
                 }
-            } catch (error) {
+
+                const thumbImg = document.getElementById('video-thumb');
+                thumbImg.src = data.thumb || 'https://via.placeholder.com/500x280?text=No+Thumbnail';
+                thumbImg.style.display = 'block';
+
+                document.getElementById('quality-list').innerHTML = `
+                    <tr>
+                        <td>Best Quality (HD)</td>
+                        <td>MP4</td>
+                        <td><button class="dl-action-btn" onclick="window.open('https://omg10.com/4/11103394', '_blank'); startDownload()">Download Video</button></td>
+                    </tr>
+                `;
+
                 loader.style.display = 'none';
-                alert("Server Connection Failed! (Agar server sleep mode me hai to dobara click karein)");
+                resultContainer.style.display = 'block';
+            } else {
+                loader.style.display = 'none';
+                alert("Error: " + data.error);
             }
+        } catch (error) {
+            loader.style.display = 'none';
+            alert("Network Error. Please check your internet connection and try again.");
         }
+    }
 
-        async function startDownload() {
-            const urlInput = document.getElementById('video-url').value.trim();
-            const progressBox = document.getElementById('progress-box');
-            const statusMessage = document.getElementById('status-message');
-            const progressBar = document.getElementById('progress-bar');
-            const videoTitle = document.getElementById('video-title').innerText;
+    async function startDownload() {
+        const urlInput = document.getElementById('video-url').value.trim();
+        const progressBox = document.getElementById('progress-box');
+        const statusMessage = document.getElementById('status-message');
+        const progressBar = document.getElementById('progress-bar');
+        const videoTitle = document.getElementById('video-title').innerText;
 
-            progressBox.style.display = 'block';
-            statusMessage.innerText = "Extracting direct secure link...";
-            progressBar.style.width = "40%";
+        progressBox.style.display = 'block';
+        statusMessage.innerText = "Extracting direct secure link... (Please wait)";
+        progressBar.style.width = "40%";
 
-            try {
-                const response = await fetchWithTimeout('/download', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: urlInput })
-                });
+        try {
+            const response = await smartFetch('/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: urlInput })
+            });
 
-                const data = await response.json();
+            const data = await response.json();
 
-                if (data.success && data.direct_url) {
-                    progressBar.style.width = "80%";
-                    statusMessage.innerText = "Downloading Started...";
-                    forceDownload(data.direct_url, videoTitle);
-                    progressBar.style.width = "100%";
-                } else {
-                    statusMessage.innerText = "Error: " + data.error;
-                    progressBar.style.width = "0%";
-                }
-            } catch (error) {
-                statusMessage.innerText = "Download failed. Please try again.";
+            if (data.success && data.direct_url) {
+                progressBar.style.width = "80%";
+                statusMessage.innerText = "Downloading Started...";
+                forceDownload(data.direct_url, videoTitle);
+                progressBar.style.width = "100%";
+            } else {
+                statusMessage.innerText = "Error: " + data.error;
                 progressBar.style.width = "0%";
             }
+        } catch (error) {
+            statusMessage.innerText = "Download failed. Please try again.";
+            progressBar.style.width = "0%";
         }
+    }
 
-        // ----------------------------------------------------------------
-        // 3. FORCE DOWNLOAD LOGIC (Popup / CORS Fix)
-        // ----------------------------------------------------------------
-        function forceDownload(videoUrl, title) {
-            const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50) || "video";
-            const fileName = cleanTitle + ".mp4";
+    // ----------------------------------------------------------------
+    // 3. FORCE DOWNLOAD LOGIC
+    // ----------------------------------------------------------------
+    function forceDownload(videoUrl, title) {
+        const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50) || "video";
+        const fileName = cleanTitle + ".mp4";
 
-            fetch(videoUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error("CORS Blocked");
-                    return response.blob();
-                })
-                .then(blob => {
-                    const blobUrl = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = blobUrl;
-                    a.download = fileName;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(blobUrl);
-                    a.remove();
-                    document.getElementById('status-message').innerText = "Download Complete!";
-                })
-                .catch(err => {
-                    // CORS Fallback: Browser 'Popup' na roke, isliye naye tab ki jagah direct redirect hoga
-                    document.getElementById('status-message').innerText = "Video tayyar hai... Please Wait!";
-                    window.location.href = videoUrl;
-                });
-        }
-    </script>
+        fetch(videoUrl)
+            .then(response => {
+                if (!response.ok) throw new Error("CORS Blocked");
+                return response.blob();
+            })
+            .then(blob => {
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = blobUrl;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(blobUrl);
+                a.remove();
+                document.getElementById('status-message').innerText = "Download Complete!";
+            })
+            .catch(err => {
+                document.getElementById('status-message').innerText = "Video tayyar hai... Please Wait!";
+                window.location.href = videoUrl;
+            });
+    }
+</script>
 </body>
 </html>

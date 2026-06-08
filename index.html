@@ -343,7 +343,7 @@
     function changeLanguage(code, name) { document.getElementById('current-lang').innerText = name; }
 
     // ----------------------------------------------------------------
-    // 2. CORE BACKEND CONNECTION
+    // 2. CORE BACKEND CONNECTION (SERVER DOWNLOAD METHOD)
     // ----------------------------------------------------------------
     const BACKEND_URL = "https://indrajeet-video-downloader.onrender.com";
 
@@ -353,7 +353,7 @@
             const response = await fetch(fullUrl, options);
             return response;
         } catch (error) {
-            console.log("Retrying in 5 seconds...");
+            console.log("Server waking up, retrying in 5 seconds...");
             await new Promise(resolve => setTimeout(resolve, 5000));
             const retryResponse = await fetch(fullUrl, options);
             return retryResponse;
@@ -390,7 +390,7 @@
                 thumbImg.src = data.thumb || 'https://via.placeholder.com/500x280?text=No+Thumbnail';
                 thumbImg.style.display = 'block';
 
-                // 🔥 सारी क्वालिटी की लिस्ट बनाएगा (Ad Code के साथ)
+                // 🔥 क्वालिटी की लिस्ट टेबल में डालना
                 const qualityList = document.getElementById('quality-list');
                 qualityList.innerHTML = '';
                 
@@ -417,7 +417,6 @@
         }
     }
 
-    // 🔥 क्वालिटी के हिसाब से लिंक निकालेगा
     async function startDownload(selectedQuality) {
         const urlInput = document.getElementById('video-url').value.trim();
         const progressBox = document.getElementById('progress-box');
@@ -425,8 +424,9 @@
         const progressBar = document.getElementById('progress-bar');
 
         progressBox.style.display = 'block';
-        statusMessage.innerText = "Extracting link securely... Please wait!";
-        progressBar.style.width = "40%";
+        // 🔥 यूज़र को बताना कि इसमें समय लग सकता है
+        statusMessage.innerText = "सर्वर वीडियो तैयार कर रहा है... (कृपया 1-2 मिनट प्रतीक्षा करें)";
+        progressBar.style.width = "50%";
 
         try {
             const response = await smartFetch('/download', {
@@ -437,10 +437,16 @@
 
             const data = await response.json();
 
-            if (data.success && data.direct_url) {
+            if (data.success && data.filename) {
                 progressBar.style.width = "100%";
-                statusMessage.innerText = "Download Triggered! Video is opening/saving...";
-                forceDownload(data.direct_url);
+                statusMessage.innerText = "Download Ready! Saving to your device...";
+                
+                // 🔥 पुराना पक्का तरीका: सीधा ब्राउज़र डाउनलोड शुरू करेगा
+                window.location.href = BACKEND_URL + "/fetch_file/" + encodeURIComponent(data.filename);
+                
+                setTimeout(() => {
+                    statusMessage.innerText = "Download Complete!";
+                }, 3000);
             } else {
                 statusMessage.innerText = "Error: " + data.error;
                 progressBar.style.width = "0%";
@@ -449,21 +455,6 @@
             statusMessage.innerText = "Download failed. Please try again.";
             progressBar.style.width = "0%";
         }
-    }
-
-    // 🚀 NEW FAST DOWNLOAD LOGIC (No delay, no Blob loading)
-    function forceDownload(videoUrl) {
-        // यह सीधे ब्राउज़र के नेटिव डाउनलोडर को ट्रिगर करेगा
-        const a = document.createElement('a');
-        a.href = videoUrl;
-        a.target = "_blank"; // अगर डायरेक्ट डाउनलोड ब्लॉक होता है, तो नए टैब में प्ले हो जाएगा जहाँ से सेव कर सकते हैं
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        
-        setTimeout(() => {
-            document.getElementById('status-message').innerText = "Download process completed.";
-        }, 3000);
     }
 </script>
 </body>

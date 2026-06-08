@@ -325,7 +325,6 @@
 <script>
     const BACKEND_URL = "https://indrajeet-video-downloader.onrender.com";
 
-    // 1. Theme Switching Logic
     function switchTheme(platform, name) {
         document.documentElement.setAttribute('data-theme', platform);
         let title = document.getElementById('main-title');
@@ -339,13 +338,11 @@
         }
     }
 
-    // 2. Cross Button Logic
     function toggleClearBtn() { 
         let val = document.getElementById('video-url').value.trim();
         document.getElementById('clear-btn').style.display = val.length > 0 ? 'block' : 'none'; 
     }
     
-    // यह बटन दबाने पर सब कुछ क्लियर होगा
     function clearInput() { 
         document.getElementById('video-url').value = ''; 
         toggleClearBtn(); 
@@ -354,14 +351,13 @@
         document.getElementById('platforms-grid').style.display = 'block';
     }
 
-    // 🚀 NEW: Link Extractor (चाइनीज टेक्स्ट और फालतू मैसेज हटाने के लिए)
+    // 🔥 चाइनीज़ टेक्स्ट हटाकर सिर्फ असली लिंक निकालने का फ़िल्टर
     function extractOnlyURL(text) {
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         const match = text.match(urlRegex);
         return match ? match[0] : text; 
     }
 
-    // 3. Smart Fetch
     async function smartFetch(endpoint, bodyData, retries = 3) {
         for (let i = 0; i < retries; i++) {
             try {
@@ -378,12 +374,10 @@
         }
     }
 
-    // 4. Fetch Video Info + Ads in Download Button
     async function checkVideoInfo() {
         let rawInput = document.getElementById('video-url').value.trim();
         if (!rawInput) return alert("Please enter a valid URL!");
         
-        // फालतू टेक्स्ट हटाकर सिर्फ लिंक निकालें और बॉक्स में वापस सेट करें
         const cleanUrl = extractOnlyURL(rawInput);
         document.getElementById('video-url').value = cleanUrl;
         
@@ -398,8 +392,12 @@
             
             if(data && data.success) {
                 document.getElementById('video-title').innerText = data.title || "Video Ready";
-                document.getElementById('video-thumb').src = data.thumb || "https://via.placeholder.com/380x214?text=No+Thumbnail";
-                document.getElementById('video-thumb').style.display = 'block';
+                
+                // 🔥 Instagram थंबनेल को ब्लॉक होने से बचाने का कोड
+                let thumbImg = document.getElementById('video-thumb');
+                thumbImg.referrerPolicy = "no-referrer"; 
+                thumbImg.src = data.thumb || "https://via.placeholder.com/380x214?text=No+Thumbnail";
+                thumbImg.style.display = 'block';
                 
                 const metaBox = document.getElementById('meta-box');
                 if(metaBox) metaBox.value = (data.title || "Video") + "\n\nDownloaded via IVD";
@@ -411,7 +409,6 @@
                 
                 qualities.forEach(q => {
                     let format = q.toLowerCase().includes('audio') || q.toLowerCase().includes('mp3') ? "MP3" : "MP4";
-                    // 📢 ADS TAG ON DOWNLOAD BUTTON
                     qList.innerHTML += `<tr>
                         <td><strong>${q}</strong></td>
                         <td>${format}</td>
@@ -434,7 +431,6 @@
         }
     }
 
-    // 5. Download Process + Auto-Clear Input (Keeping Results)
     async function startDownload(url, q) {
         const status = document.getElementById('status-message');
         const progressBox = document.getElementById('progress-box');
@@ -467,10 +463,9 @@
                 link.click();
                 link.remove();
 
-                // 🔥 AUTO CLEAR ONLY INPUT BOX (वीडियो की डिटेल्स स्क्रीन पर ही रहेगी)
                 setTimeout(() => {
                     document.getElementById('video-url').value = '';
-                    toggleClearBtn(); // क्रॉस बटन छिपा देगा
+                    toggleClearBtn(); 
                     status.innerText = "Ready for another download!";
                     status.style.color = "var(--text-main)";
                 }, 3000);
@@ -486,7 +481,6 @@
         }
     }
     
-    // Extra Functions
     function copyMetadata() {
         const meta = document.getElementById('meta-box');
         if(meta) { navigator.clipboard.writeText(meta.value); alert("Copied!"); }

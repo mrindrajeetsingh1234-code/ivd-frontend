@@ -323,138 +323,71 @@
     </div>
 
 <script>
-    // ----------------------------------------------------------------
-    // 1. UI & HELPER FUNCTIONS
-    // ----------------------------------------------------------------
-    function toggleClearBtn() { document.getElementById('clear-btn').style.display = document.getElementById('video-url').value ? 'block' : 'none'; }
-    function clearInput() { document.getElementById('video-url').value = ''; toggleClearBtn(); }
-    function switchTheme(theme) { document.documentElement.setAttribute('data-theme', theme); }
-    function downloadFakeExtension() { alert("Extension is coming soon!"); }
-    function openDeveloperModal() { document.getElementById('dev-modal').classList.add('active'); }
-    function closeDeveloperModal(e) { if (!e || e.target.classList.contains('dev-modal-overlay') || e.target.classList.contains('dev-close')) { document.getElementById('dev-modal').classList.remove('active'); } }
-    function downloadThumbnail() { const thumbUrl = document.getElementById('video-thumb').src; if (thumbUrl) window.open(thumbUrl, '_blank'); }
-    function openPlatform(url) { window.open(url, '_blank'); }
-    function copyMetadata() {
-        const metaBox = document.getElementById('meta-box');
-        if(metaBox && metaBox.value) {
-            navigator.clipboard.writeText(metaBox.value).then(() => { alert("Copied to clipboard!"); }).catch(err => { console.error('Failed to copy: ', err); });
-        } else { alert("Nothing to copy!"); }
-    }
-    function changeLanguage(code, name) { document.getElementById('current-lang').innerText = name; }
-
-    // ----------------------------------------------------------------
-    // 2. CORE BACKEND CONNECTION (ABSOLUTE URLS)
-    // ----------------------------------------------------------------
     const BACKEND_URL = "https://indrajeet-video-downloader.onrender.com";
 
-    // 🚀 SmartFetch: यह सर्वर के जागने तक इंतज़ार करेगा, 'Network Error' नहीं देगा
-    async function smartFetch(endpoint, options = {}) {
-        const fullUrl = BACKEND_URL + endpoint;
-        try {
-            const response = await fetch(fullUrl, options);
-            if (!response.ok) throw new Error("Server not ready");
-            return response;
-        } catch (error) {
-            console.log("Server waking up, retrying...");
-            await new Promise(resolve => setTimeout(resolve, 5000)); // 5 सेकंड इंतज़ार
-            return await fetch(fullUrl, options);
+    async function smartFetch(endpoint, options = {}, retries = 3) {
+        for(let i=0; i<retries; i++) {
+            try {
+                const res = await fetch(BACKEND_URL + endpoint, options);
+                if(res.ok) return await res.json();
+                throw new Error("Busy");
+            } catch(e) {
+                if(i === retries - 1) throw e;
+                await new Promise(r => setTimeout(r, 3000)); // 3 सेकंड रुककर दोबारा कोशिश
+            }
         }
     }
 
     async function checkVideoInfo() {
-        const urlInput = document.getElementById('video-url').value.trim();
+        const url = document.getElementById('video-url').value.trim();
         const loader = document.getElementById('loader');
-        const resultContainer = document.getElementById('result-container');
-        const progressBox = document.getElementById('progress-box');
         
-        if (!urlInput) { alert("Please enter a valid URL!"); return; }
-
         loader.style.display = 'block';
-        resultContainer.style.display = 'none';
-        progressBox.style.display = 'none';
+        document.getElementById('result-container').style.display = 'none';
 
         try {
-            const response = await smartFetch('/check_info', {
+            const data = await smartFetch('/check_info', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: urlInput })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({url: url})
             });
 
-            const data = await response.json();
-
-            if (data.success) {
-                document.getElementById('video-title').innerText = data.title || "Video";
-                const metaBox = document.getElementById('meta-box');
-                if (metaBox) metaBox.value = `${data.title || "Video"}\n\nDownloaded via: Indrajeet Video Downloader`;
-                
-                const thumbImg = document.getElementById('video-thumb');
-                thumbImg.src = data.thumb || 'https://via.placeholder.com/500x280?text=No+Thumbnail';
-                thumbImg.style.display = 'block';
-
-                const qualityList = document.getElementById('quality-list');
-                qualityList.innerHTML = '';
-                
-                data.qualities.forEach(q => {
-                    let format = q.includes('Audio') ? 'MP3' : 'MP4';
-                    qualityList.innerHTML += `
-                        <tr>
-                            <td>${q}</td>
-                            <td>${format}</td>
-                            <td>
-                                <button class="dl-action-btn" onclick="window.open('https://omg10.com/4/11103394', '_blank'); startDownload('${q}')">
-                                    Download
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                });
-
+            if(data.success) {
+                document.getElementById('video-title').innerText = data.title;
+                document.getElementById('video-thumb').src = data.thumb;
+                document.getElementById('video-thumb').style.display = 'block';
+                document.getElementById('result-container').style.display = 'block';
                 loader.style.display = 'none';
-                resultContainer.style.display = 'block';
             } else {
-                loader.style.display = 'none';
                 alert("Error: " + data.error);
+                loader.style.display = 'none';
             }
-        } catch (error) {
+        } catch(e) {
             loader.style.display = 'none';
-            alert("Network Error: Server abhi busy hai, 5 second mein retry karein.");
+            alert("Server Busy hai, 10 second baad retry karein.");
         }
     }
 
-    async function startDownload(selectedQuality) {
-        const urlInput = document.getElementById('video-url').value.trim();
-        const progressBox = document.getElementById('progress-box');
-        const statusMessage = document.getElementById('status-message');
-        const progressBar = document.getElementById('progress-bar');
-
-        progressBox.style.display = 'block';
-        statusMessage.innerText = "सर्वर वीडियो तैयार कर रहा है... (कृपया 1-2 मिनट प्रतीक्षा करें)";
-        progressBar.style.width = "50%";
-
+    async function startDownload() {
+        const url = document.getElementById('video-url').value.trim();
+        const status = document.getElementById('status-message');
+        status.innerText = "Video Server par download ho rahi hai... Wait karein!";
+        
         try {
-            const response = await smartFetch('/download', {
+            const data = await smartFetch('/download', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: urlInput, quality: selectedQuality })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({url: url})
             });
-
-            const data = await response.json();
-
-            if (data.success && data.filename) {
-                progressBar.style.width = "100%";
-                statusMessage.innerText = "Download Ready! Saving file...";
-                
-                // 🔥 सर्वर से फाइल डाउनलोड करने का सही तरीका
-                window.location.href = BACKEND_URL + "/fetch_file/" + encodeURIComponent(data.filename);
-                
-                setTimeout(() => { statusMessage.innerText = "Download Complete!"; }, 3000);
+            
+            if(data.success) {
+                window.location.href = BACKEND_URL + "/files/" + encodeURIComponent(data.filename);
+                status.innerText = "Download Complete!";
             } else {
-                statusMessage.innerText = "Error: " + data.error;
-                progressBar.style.width = "0%";
+                status.innerText = "Error: " + data.error;
             }
-        } catch (error) {
-            statusMessage.innerText = "Download failed. Please try again.";
-            progressBar.style.width = "0%";
+        } catch(e) {
+            status.innerText = "Server Busy, Please Try Again.";
         }
     }
 </script>

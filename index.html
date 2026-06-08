@@ -450,180 +450,141 @@
         </div>
     </div>
 
-    <script>
-        function toggleClearBtn() { 
-            let val = document.getElementById('video-url').value;
-            document.getElementById('clear-btn').style.display = val.trim().length > 0 ? 'block' : 'none'; 
-        }
-        function clearInput() {
-            document.getElementById('video-url').value = '';
-            toggleClearBtn();
-            document.getElementById('result-container').style.display = 'none';
-            document.getElementById('platforms-grid').style.display = 'block';
+   <script>
+    // 60-Second Timeout Fetch Function (Render ke sleep mode ke liye)
+    async function fetchWithTimeout(resource, options = {}) {
+        const timeout = 60000; // 60 seconds
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+        const response = await fetch(resource, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+    }
+
+    // Video ki details nikalne ka function
+    async function checkVideoInfo() {
+        const urlInput = document.getElementById('video-url').value.trim();
+        const statusMsg = document.getElementById('status-msg');
+        const infoDiv = document.getElementById('video-info');
+        const fetchBtn = document.getElementById('fetch-btn');
+
+        if (!urlInput) {
+            statusMsg.innerText = "Please enter a valid URL!";
+            statusMsg.className = "";
+            return;
         }
 
-        async function downloadThumbnail() {
-            let imgUrl = document.getElementById('video-thumb').src;
-            if(imgUrl) {
-                try {
-                    let btn = document.querySelector('.download-thumb-btn');
-                    btn.innerText = "⏳ Downloading...";
-                    let response = await fetch(imgUrl);
-                    let blob = await response.blob();
-                    let blobUrl = window.URL.createObjectURL(blob);
-                    let a = document.createElement('a');
-                    a.href = blobUrl;
-                    a.download = 'IVD_Thumbnail.jpg';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(blobUrl);
-                    btn.innerText = "✅ Downloaded";
-                    setTimeout(() => { btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> Download HD Thumbnail`; }, 2000);
-                } catch(e) {
-                    window.open(imgUrl, '_blank');
-                }
-            }
-        }
+        // Reset UI
+        infoDiv.classList.add('hidden');
+        statusMsg.innerText = "Server se connect kar raha hai (Please wait 10-30s)...";
+        statusMsg.className = "";
+        fetchBtn.disabled = true;
 
-        function copyMetadata() {
-            let text = document.getElementById('meta-box').value;
-            if(text) {
-                navigator.clipboard.writeText(text);
-                let btn = document.querySelector('.copy-all-btn');
-                btn.innerText = "✅ Copied!";
-                btn.style.background = "#00e676";
-                setTimeout(() => { btn.innerText = "📋 Copy"; btn.style.background = "var(--primary-color)"; }, 2000);
-            }
-        }
+        try {
+            const response = await fetchWithTimeout('/check_info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: urlInput })
+            });
 
-        function switchTheme(platform, name) {
-            document.documentElement.setAttribute('data-theme', platform);
-            let featuresDiv = document.getElementById('dynamic-features'); let howToTitle = document.getElementById('how-to-title'); let step1Desc = document.getElementById('step-1-desc');
-            if(name === 'All') {
-                document.getElementById('main-title').innerText = "Indrajeet Video Downloader"; document.getElementById('video-url').placeholder = "Paste ANY video link here..."; featuresDiv.innerHTML = ""; howToTitle.innerText = "How to Download All Videos"; step1Desc.innerText = "Open the app and copy the video URL.";
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById('video-title').innerText = data.title;
+                document.getElementById('video-thumb').src = data.thumb || 'https://via.placeholder.com/500x280?text=No+Thumbnail';
+                
+                infoDiv.classList.remove('hidden');
+                statusMsg.innerText = "Video found!";
+                statusMsg.className = "success-msg";
             } else {
-                document.getElementById('main-title').innerText = `${name} Video Downloader`; document.getElementById('video-url').placeholder = `Paste your ${name} link here...`; howToTitle.innerText = `How to Download ${name} Videos`; step1Desc.innerText = `Open the ${name} app and copy the video URL.`;
-                let playIcon = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'; let checkIcon = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
-                if(platform === 'youtube') { featuresDiv.innerHTML = `<div class="feature-box">${playIcon} Shorts Downloader</div><div class="feature-box">${playIcon} Full Video Downloader</div><div class="feature-box">${playIcon} Thumbnail Downloader</div>`; } 
-                else if(platform === 'tiktok') { featuresDiv.innerHTML = `<div class="feature-box">${checkIcon} Unlimited Downloads</div><div class="feature-box">${checkIcon} No Watermark</div><div class="feature-box">${checkIcon} MP4 & MP3 Support</div>`; } 
-                else if(platform === 'instagram') { featuresDiv.innerHTML = `<div class="feature-box">${playIcon} Reels Downloader</div><div class="feature-box">${playIcon} IGTV & Video Downloader</div><div class="feature-box">${playIcon} Story Downloader</div>`; } 
-                else { featuresDiv.innerHTML = `<div class="feature-box">${checkIcon} Unlimited Downloads</div><div class="feature-box">${checkIcon} High Quality Save</div>`; }
+                statusMsg.innerText = "Error: " + data.error;
             }
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                statusMsg.innerText = "Server sleep mode mein tha. Kripya dobara button dabayein.";
+            } else {
+                statusMsg.innerText = "Connection failed. Please check your internet or try again.";
+            }
+        } finally {
+            fetchBtn.disabled = false;
         }
+    }
 
-        let lastCopiedLink = "";
-        setInterval(() => {
-            try {
-                if (typeof window !== "undefined" && window.require) {
-                    const { clipboard } = window.require('electron'); 
-                    let text = clipboard.readText();
-                    if (text && text !== lastCopiedLink && text.startsWith('http')) {
-                        lastCopiedLink = text; let inputBox = document.getElementById('video-url');
-                        if (inputBox.value !== text) { inputBox.value = text; toggleClearBtn(); fetchVideoData(); }
-                    }
-                }
-            } catch (err) {}
-        }, 1000);
+    // Video Download karne ka function
+    async function startDownload() {
+        const urlInput = document.getElementById('video-url').value.trim();
+        const statusMsg = document.getElementById('status-msg');
+        const downloadBtn = document.getElementById('download-btn');
+        const videoTitle = document.getElementById('video-title').innerText;
 
-        function openDeveloperModal() { document.getElementById('dev-modal').classList.add('active'); }
-        function closeDeveloperModal(event) { if(event) { if(event.target.id === 'dev-modal') document.getElementById('dev-modal').classList.remove('active'); } else { document.getElementById('dev-modal').classList.remove('active'); } }
-        function openPlatform(url) { window.open(url, '_blank'); }
+        statusMsg.innerText = "Link extract ho raha hai, kripya pratiksha karein...";
+        statusMsg.className = "";
+        downloadBtn.disabled = true;
 
-        // 🚀 FAST FETCH DATA (No Wait Logic)
-        function fetchVideoData() {
-            let url = document.getElementById('video-url').value.trim(); 
-            if(!url) { alert("Please paste a video link first!"); return; }
-            
-            document.getElementById('platforms-grid').style.display = 'none'; 
-            document.getElementById('result-container').style.display = 'none';
-            document.getElementById('progress-box').style.display = 'none'; 
-            document.getElementById('loader').style.display = 'block'; 
-            
-            // Backend call
-            fetch('https://indrajeet-video-downloader.onrender.com/check_info', { 
-                method: 'POST', body: JSON.stringify({url}), headers:{'Content-Type':'application/json'} 
-            }).then(res => res.json()).then(data => {
-                document.getElementById('loader').style.display = 'none'; 
-                if(data.success) {
-                    document.getElementById('result-container').style.display = 'block'; 
-                    document.getElementById('video-title').innerText = data.title;
-                    document.getElementById('meta-box').value = data.metadata || `Title: ${data.title}\nLink: ${url}`;
-                    
-                    let ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))((\w|-){11})/);
-                    let playerContainer = document.getElementById('player-container');
-                    let thumbImg = document.getElementById('video-thumb');
-
-                    // If Youtube, show Player, else show Thumbnail
-                    if(ytMatch) {
-                        playerContainer.src = `https://www.youtube.com/embed/${ytMatch[1]}`;
-                        playerContainer.style.display = 'block';
-                        thumbImg.style.display = 'none';
-                    } else {
-                        playerContainer.src = '';
-                        playerContainer.style.display = 'none';
-                        thumbImg.style.display = 'block';
-                        thumbImg.src = data.thumb;
-                    }
-                    
-                    let tbody = document.getElementById('quality-list'); tbody.innerHTML = '';
-                    data.qualities.forEach(q => {
-                        let tr = document.createElement('tr'); 
-                        let tdQ = document.createElement('td'); tdQ.innerHTML = `<strong>${q}</strong>`; 
-                        let tdF = document.createElement('td'); tdF.innerText = q.toLowerCase().includes('audio') ? "MP3" : "MP4"; 
-                        let tdBtn = document.createElement('td'); 
-                        let btn = document.createElement('button'); 
-                        btn.className = "dl-action-btn"; btn.innerText = "Download"; 
-                      btn.onclick = function() { 
-                            window.open('https://omg10.com/4/11103394', '_blank'); // 💰 Monetag Ad Added
-                            document.querySelectorAll('.dl-action-btn').forEach(b => b.innerText = "Download"); 
-                            this.innerText = "Processing..."; startRealDownload(url, q); 
-                        };
-                        tdBtn.appendChild(btn); tr.appendChild(tdQ); tr.appendChild(tdF); tr.appendChild(tdBtn); tbody.appendChild(tr);
-                    });
-                } else {
-                    alert("Error: " + data.error);
-                    document.getElementById('platforms-grid').style.display = 'block';
-                }
-            }).catch((err) => { 
-                document.getElementById('loader').style.display = 'none'; 
-                alert("Server connection failed. Agar server sleep mode me hai, toh 30 sec lag sakte hain.");
-                document.getElementById('platforms-grid').style.display = 'block';
+        try {
+            const response = await fetchWithTimeout('/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: urlInput })
             });
+
+            const data = await response.json();
+
+            if (data.success && data.direct_url) {
+                statusMsg.innerText = "Downloading start ho rahi hai...";
+                statusMsg.className = "success-msg";
+                
+                // Force Download Logic (Naya tab open hone se rokne ke liye)
+                forceDownload(data.direct_url, videoTitle);
+            } else {
+                statusMsg.innerText = "Download Error: " + data.error;
+            }
+        } catch (error) {
+            statusMsg.innerText = "Download failed. Please try again.";
+        } finally {
+            downloadBtn.disabled = false;
         }
+    }
 
-       // 🚀 FAST DOWNLOADER
-        function startRealDownload(url, qType) { 
-            let pBox = document.getElementById('progress-box'); let pBar = document.getElementById('progress-bar'); 
-            let pText = document.getElementById('progress-text'); let statusMsg = document.getElementById('status-message'); 
-            
-            pBox.style.display = 'block'; pBar.style.width = '20%'; pText.innerText = '20%'; 
-            statusMsg.style.color = "var(--primary-color)"; statusMsg.innerText = "Fast Downloading from Server...";
-            
-            let progress = 20; 
-            let downloadInterval = setInterval(() => { progress += Math.random() * 15; if(progress > 90) progress = 90; pBar.style.width = progress + '%'; pText.innerText = Math.floor(progress) + '%'; }, 800); 
+    // Direct MP4 file save karwane ka advanced logic
+    function forceDownload(videoUrl, title) {
+        // File ka naam clean karna
+        const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50) || "video";
+        const fileName = cleanTitle + ".mp4";
 
-            fetch('https://indrajeet-video-downloader.onrender.com/download', { 
-                method: 'POST', body: JSON.stringify({url, quality: qType}), headers:{'Content-Type':'application/json'} 
-            }).then(res => res.json()).then(data => { 
-                clearInterval(downloadInterval);
-                if(data.success) { 
-                    pBar.style.width = '100%'; pText.innerText = '100%'; 
-                    statusMsg.style.color = "#00e676"; statusMsg.innerText = "Download Ready! Starting Fast Download..."; 
-                    
-                    // 🚀 सीधा डायरेक्ट फास्ट लिंक
-                    window.location.href = data.direct_url; 
-                } else {
-                    pBar.style.width = '0%'; pText.innerText = '0%';
-                    statusMsg.style.color = "#ff0000"; statusMsg.innerText = "Error: Download failed.";
-                    alert("Download Error: " + data.error);
-                }
-            }).catch(err => {
-                clearInterval(downloadInterval);
-                pBar.style.width = '0%'; pText.innerText = '0%';
-                statusMsg.style.color = "#ff0000"; statusMsg.innerText = "Network Error!";
+        fetch(videoUrl)
+            .then(response => {
+                if (!response.ok) throw new Error("CORS Blocked");
+                return response.blob();
+            })
+            .then(blob => {
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = blobUrl;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(blobUrl);
+                a.remove();
+                document.getElementById('status-msg').innerText = "Download Complete!";
+            })
+            .catch(err => {
+                // Agar Instagram/Facebook direct download block karein, toh automatically fallback use hoga
+                document.getElementById('status-msg').innerText = "Video naye tab mein khul rahi hai. Wahan se save karein.";
+                
+                const fallbackLink = document.createElement('a');
+                fallbackLink.href = videoUrl;
+                fallbackLink.target = '_blank';
+                fallbackLink.download = fileName;
+                document.body.appendChild(fallbackLink);
+                fallbackLink.click();
+                fallbackLink.remove();
             });
-        }
-    </script>
+    }
+</script>
 </body>
 </html>

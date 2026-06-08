@@ -351,7 +351,6 @@
         document.getElementById('platforms-grid').style.display = 'block';
     }
 
-    // 🔥 चाइनीज़ टेक्स्ट हटाकर सिर्फ असली लिंक निकालने का फ़िल्टर
     function extractOnlyURL(text) {
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         const match = text.match(urlRegex);
@@ -393,10 +392,13 @@
             if(data && data.success) {
                 document.getElementById('video-title').innerText = data.title || "Video Ready";
                 
-                // 🔥 Instagram थंबनेल को ब्लॉक होने से बचाने का कोड
+                // 🚀 Proxy के ज़रिए थंबनेल लोड करना (ताकि इंस्टाग्राम ब्लॉक न कर सके)
                 let thumbImg = document.getElementById('video-thumb');
-                thumbImg.referrerPolicy = "no-referrer"; 
-                thumbImg.src = data.thumb || "https://via.placeholder.com/380x214?text=No+Thumbnail";
+                if(data.thumb) {
+                    thumbImg.src = BACKEND_URL + "/proxy_thumb?url=" + encodeURIComponent(data.thumb);
+                } else {
+                    thumbImg.src = "https://via.placeholder.com/380x214?text=No+Thumbnail";
+                }
                 thumbImg.style.display = 'block';
                 
                 const metaBox = document.getElementById('meta-box');
@@ -463,6 +465,7 @@
                 link.click();
                 link.remove();
 
+                // बॉक्स खाली होगा लेकिन वीडियो डिटेल्स बची रहेंगी
                 setTimeout(() => {
                     document.getElementById('video-url').value = '';
                     toggleClearBtn(); 
